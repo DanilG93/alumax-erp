@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Node.js / React / Vite
+alumax-frontend/node_modules/
+alumax-frontend/dist/
+alumax-frontend/.env
+alumax-frontend/.env.local
+alumax-frontend/*.log
+alumax-frontend/.vite/
+
+# macOS (ne škodi)
+.DS_Store
+
+# Windows (ne škodi)
+Thumbs.db
