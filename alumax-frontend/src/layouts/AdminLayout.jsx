@@ -12,13 +12,12 @@ function AdminLayout() {
     deliveryAddress: "",
     plisseType: "VRSTA_1",
     isDouble: false,
-    noThreshold: false,
+    hasThreshold: false, // ISPRAVLJENO
     openingDirection: "RIGHT",
   });
 
   const [suggestions, setSuggestions] = useState([]);
 
-  // Učitavanje starih kupaca čim se stranica otvori
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
@@ -36,7 +35,6 @@ function AdminLayout() {
     try {
       await createWorkOrder(order);
       alert("Nalog uspešno kreiran!");
-      // Reset forme nakon uspesnog slanja
       setOrder({
         protocolNumber: "",
         customerDescription: "",
@@ -47,7 +45,7 @@ function AdminLayout() {
         deliveryAddress: "",
         plisseType: "VRSTA_1",
         isDouble: false,
-        noThreshold: false,
+        hasThreshold: false,
         openingDirection: "RIGHT",
       });
     } catch (error) {
@@ -163,7 +161,6 @@ function AdminLayout() {
                 </div>
               </div>
 
-              {/* POLJE ZA ADRESU KOJE SE POJAVLJUJE AKO JE ISPORUKA ŠTIKLIRANA */}
               {order.deliveryRequired && (
                 <div className="col-12 mt-3 animate__animated animate__fadeIn">
                   <label className="form-label fw-medium text-primary">
@@ -217,11 +214,9 @@ function AdminLayout() {
             </div>
           </div>
 
-          {/* SEKCIJA 3: KONFIGURACIJA PLISEA */}
           <div className="card p-4 shadow-sm border-0 mb-4 rounded-4">
             <h5 className="text-muted fw-bold mb-4">KONFIGURACIJA PLISEA</h5>
             <div className="row g-4 align-items-center">
-              {/* VRSTA */}
               <div className="col-md-4 border-end">
                 <p className="fw-medium mb-2">1. Vrsta Plisea</p>
                 <div className="d-flex gap-2">
@@ -246,7 +241,6 @@ function AdminLayout() {
                 </div>
               </div>
 
-              {/* OPCIJE */}
               <div className="col-md-4 border-end px-md-4">
                 <p className="fw-medium mb-2">2. Opcije</p>
                 <div className="form-check mb-2 fs-5">
@@ -265,29 +259,29 @@ function AdminLayout() {
                     }}
                   />
                   <label className="form-check-label" htmlFor="isDoubleCheck">
-                    Dupli Komarnik
+                    Dvodelni Komarnik
                   </label>
                 </div>
                 <div className="form-check fs-5">
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="noThresholdCheck"
-                    checked={order.noThreshold}
+                    id="hasThresholdCheck"
+                    checked={order.hasThreshold}
                     onChange={(e) =>
-                      setOrder({ ...order, noThreshold: e.target.checked })
+                      setOrder({ ...order, hasThreshold: e.target.checked })
                     }
                   />
+                  {/* ISPRAVLJENO: Sa pragom */}
                   <label
                     className="form-check-label"
-                    htmlFor="noThresholdCheck"
+                    htmlFor="hasThresholdCheck"
                   >
-                    Bez Praga (Gusenica)
+                    Sa pragom
                   </label>
                 </div>
               </div>
 
-              {/* SMER OTVARANJA */}
               <div className="col-md-4 px-md-4">
                 <p className="fw-medium mb-2">3. Smer Otvaranja</p>
                 {order.isDouble ? (
