@@ -51,8 +51,8 @@ public class WorkOrder {
     @Column(name = "is_double", nullable = false)
     private boolean isDouble = false;
 
-    @Column(name = "no_threshold", nullable = false)
-    private boolean noThreshold = false;
+    @Column(name = "has_threshold", nullable = false)
+    private boolean hasThreshold = false;
 
     @Column(name = "opening_direction")
     private String openingDirection;
