@@ -15,3 +15,5 @@ export const updateWorkOrderStatus = (id, status) =>
 export const getTemplates = () => api.get("/templates");
 export const createTemplate = (template) => api.post("/templates", template);
 export const deleteTemplate = (id) => api.delete(`/templates/${id}`);
+export const createWorkOrder = (workOrder) =>
+  api.post("/work-orders", workOrder);
