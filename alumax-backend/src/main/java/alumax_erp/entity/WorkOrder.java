@@ -19,6 +19,9 @@ public class WorkOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "protocol_number", unique = true)
+    private String protocolNumber;
+
     @Column(name = "customer_description")
     private String customerDescription;
 
@@ -32,12 +35,28 @@ public class WorkOrder {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.NEW;
 
-    // NOVO: Da li je nova narudžbina ili servis (po default-u stavljamo da je novo)
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
     private OrderType type = OrderType.NEW_ORDER;
 
-    // NOVO: Lista zamenjenih delova (Hibernate sam pravi veznu tabelu 'work_order_service_parts')
+    @Column(name = "delivery_required", nullable = false)
+    private boolean deliveryRequired = false;
+
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
+
+    @Column(name = "plisse_type")
+    private String plisseType;
+
+    @Column(name = "is_double", nullable = false)
+    private boolean isDouble = false;
+
+    @Column(name = "no_threshold", nullable = false)
+    private boolean noThreshold = false;
+
+    @Column(name = "opening_direction")
+    private String openingDirection;
+
     @ElementCollection(targetClass = ServicePart.class)
     @CollectionTable(name = "work_order_service_parts", joinColumns = @JoinColumn(name = "work_order_id"))
     @Enumerated(EnumType.STRING)
