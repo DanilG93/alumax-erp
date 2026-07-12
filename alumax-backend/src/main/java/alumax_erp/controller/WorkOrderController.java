@@ -1,5 +1,6 @@
 package alumax_erp.controller;
 
+import alumax_erp.entity.OrderItem;
 import alumax_erp.entity.OrderStatus;
 import alumax_erp.entity.WorkOrder;
 import alumax_erp.service.WorkOrderService;
@@ -27,13 +28,21 @@ public class WorkOrderController {
         return service.saveWorkOrder(workOrder);
     }
 
-    @PutMapping("/{id}/status")
-    public WorkOrder updateStatus(@PathVariable Long id, @RequestParam OrderStatus status) {
-        return service.updateOrderStatus(id, status);
-    }
-
     @GetMapping("/customers/suggestions")
     public ResponseEntity<List<String>> getCustomerSuggestions() {
         return ResponseEntity.ok(service.getCustomerSuggestions());
+    }
+
+    @GetMapping("/items")
+    public List<OrderItem> getAllOrderItems(@RequestParam(required = false) OrderStatus status) {
+        if (status != null) {
+            return service.getOrderItemsByStatus(status);
+        }
+        return service.getAllOrderItems();
+    }
+
+    @PutMapping("/items/{itemId}/status")
+    public OrderItem updateItemStatus(@PathVariable Long itemId, @RequestParam OrderStatus status) {
+        return service.updateOrderItemStatus(itemId, status);
     }
 }

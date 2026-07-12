@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,15 +23,9 @@ public class WorkOrder {
     @Column(name = "customer_description")
     private String customerDescription;
 
-    @Column(name = "input_width", nullable = false, precision = 8, scale = 2)
-    private BigDecimal inputWidth;
-
-    @Column(name = "input_height", nullable = false, precision = 8, scale = 2)
-    private BigDecimal inputHeight;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OrderStatus status = OrderStatus.NEW;
+    private OrderStatus status = OrderStatus.NEW; // Ukupni status naloga (računa se na osnovu stavki)
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
@@ -45,17 +37,8 @@ public class WorkOrder {
     @Column(name = "delivery_address")
     private String deliveryAddress;
 
-    @Column(name = "plisse_type")
-    private String plisseType;
-
-    @Column(name = "is_double", nullable = false)
-    private boolean isDouble = false;
-
-    @Column(name = "has_threshold", nullable = false)
-    private boolean hasThreshold = false;
-
-    @Column(name = "opening_direction")
-    private String openingDirection;
+    @OneToMany(mappedBy = "workOrder", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<OrderItem> items;
 
     @ElementCollection(targetClass = ServicePart.class)
     @CollectionTable(name = "work_order_service_parts", joinColumns = @JoinColumn(name = "work_order_id"))
@@ -66,7 +49,4 @@ public class WorkOrder {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @OneToMany(mappedBy = "workOrder", cascade = CascadeType.ALL)
-    private List<CuttingItem> cuttingItems;
 }
