@@ -20,14 +20,32 @@ public class WorkOrderService {
         return repository.findAll();
     }
 
-    public WorkOrder saveWorkOrder(WorkOrder workOrder) {
+    public List<String> getCustomerSuggestions() {
+        return repository.findDistinctCustomerDescriptions();
+    }
 
+    public WorkOrder saveWorkOrder(WorkOrder workOrder) {
         workOrder.setStatus(OrderStatus.NEW);
+
+        // Pametna logika za Protokol broj (Ručni unos + Auto-increment)
+        if (workOrder.getProtocolNumber() == null || workOrder.getProtocolNumber().trim().isEmpty()) {
+            String maxProtocol = repository.findMaxNumericProtocolNumber();
+            if (maxProtocol == null) {
+                workOrder.setProtocolNumber("1"); // Ako je baza skroz prazna, krećemo od 1
+            } else {
+                try {
+                    long nextNum = Long.parseLong(maxProtocol) + 1;
+                    workOrder.setProtocolNumber(String.valueOf(nextNum));
+                } catch (NumberFormatException e) {
+                    workOrder.setProtocolNumber(String.valueOf(System.currentTimeMillis() / 1000)); // Rezervni plan
+                }
+            }
+        }
+
         return repository.save(workOrder);
     }
 
     public WorkOrder updateOrderStatus(Long orderId, OrderStatus newStatus) {
-
         WorkOrder order = repository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Work order with ID " + orderId + " not found!"));
 

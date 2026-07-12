@@ -4,6 +4,7 @@ import alumax_erp.entity.OrderStatus;
 import alumax_erp.entity.WorkOrder;
 import alumax_erp.service.WorkOrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,5 +30,10 @@ public class WorkOrderController {
     @PutMapping("/{id}/status")
     public WorkOrder updateStatus(@PathVariable Long id, @RequestParam OrderStatus status) {
         return service.updateOrderStatus(id, status);
+    }
+
+    @GetMapping("/customers/suggestions")
+    public ResponseEntity<List<String>> getCustomerSuggestions() {
+        return ResponseEntity.ok(service.getCustomerSuggestions());
     }
 }
