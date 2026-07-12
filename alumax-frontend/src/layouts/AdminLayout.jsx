@@ -61,7 +61,6 @@ function AdminLayout() {
       return;
     }
 
-    // Pakovanje podataka tačno kako Backend (WorkOrder entitet) očekuje
     const payload = {
       ...orderHeader,
       items: items,
@@ -71,7 +70,6 @@ function AdminLayout() {
       await createWorkOrder(payload);
       alert("Kompletan nalog uspešno kreiran!");
 
-      // Resetuj sve nakon uspešnog čuvanja
       setOrderHeader({
         protocolNumber: "",
         customerDescription: "",
@@ -128,9 +126,7 @@ function AdminLayout() {
           Kreiranje Novog Radnog Naloga
         </h2>
 
-        {/* =========================================
-            SEKCIJA 1: IDENTIFIKACIJA KUPCA
-        ========================================= */}
+        {/* SEKCIJA 1: IDENTIFIKACIJA KUPCA */}
         <div className="card p-4 shadow-sm border-0 mb-4 rounded-4">
           <h5 className="text-muted fw-bold mb-3">
             1. IDENTIFIKACIJA I ISPORUKA
@@ -216,9 +212,7 @@ function AdminLayout() {
           </div>
         </div>
 
-        {/* =========================================
-            SEKCIJA 2: DODAVANJE KOMARNIKA (STAVKE)
-        ========================================= */}
+        {/* SEKCIJA 2: KONFIGURACIJA KOMARNIKA */}
         <div
           className="card p-4 shadow-sm border-primary border mb-4 rounded-4"
           style={{ backgroundColor: "#f8fbff" }}
@@ -318,38 +312,33 @@ function AdminLayout() {
             </div>
 
             <div className="col-md-6">
-              <p className="fw-medium mb-2">Smer Otvaranja</p>
-              {currentItem.isDouble ? (
-                <button
-                  className="btn btn-secondary w-100 fw-bold fs-5"
-                  disabled
-                >
-                  &larr; SREDINA &rarr;
-                </button>
-              ) : (
-                <div className="d-flex gap-2">
-                  <button
-                    className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "LEFT" ? "btn-dark" : "btn-outline-dark"}`}
-                    onClick={() =>
-                      setCurrentItem({
-                        ...currentItem,
-                        openingDirection: "LEFT",
-                      })
-                    }
-                  >
-                    &larr; Levo
-                  </button>
-                  <button
-                    className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "RIGHT" ? "btn-dark" : "btn-outline-dark"}`}
-                    onClick={() =>
-                      setCurrentItem({
-                        ...currentItem,
-                        openingDirection: "RIGHT",
-                      })
-                    }
-                  >
-                    Desno &rarr;
-                  </button>
+              {!currentItem.isDouble && (
+                <div>
+                  <p className="fw-medium mb-2">Smer Otvaranja</p>
+                  <div className="d-flex gap-2">
+                    <button
+                      className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "LEFT" ? "btn-dark" : "btn-outline-dark"}`}
+                      onClick={() =>
+                        setCurrentItem({
+                          ...currentItem,
+                          openingDirection: "LEFT",
+                        })
+                      }
+                    >
+                      &larr; Levo
+                    </button>
+                    <button
+                      className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "RIGHT" ? "btn-dark" : "btn-outline-dark"}`}
+                      onClick={() =>
+                        setCurrentItem({
+                          ...currentItem,
+                          openingDirection: "RIGHT",
+                        })
+                      }
+                    >
+                      Desno &rarr;
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -364,11 +353,9 @@ function AdminLayout() {
           </button>
         </div>
 
-        {/* =========================================
-            SEKCIJA 3: KORPA (LISTA STAVKI) I SLANJE
-        ========================================= */}
+        {/* SEKCIJA 3: LISTA DODATIH STAVKI */}
         {items.length > 0 && (
-          <div className="card p-4 shadow-sm border-0 mb-4 rounded-4 animate__animated animate__fadeIn">
+          <div className="card p-4 shadow-sm border-0 mb-4 rounded-4">
             <h5 className="text-success fw-bold mb-3">
               3. DODATI KOMARNICI ({items.length})
             </h5>
@@ -402,8 +389,8 @@ function AdminLayout() {
                         </small>
                       </td>
                       <td>
-                        {item.openingDirection === "CENTER"
-                          ? "Sredina"
+                        {item.isDouble
+                          ? ""
                           : item.openingDirection === "LEFT"
                             ? "Levo"
                             : "Desno"}
