@@ -2,18 +2,27 @@ import { useState, useEffect } from "react";
 import { getWorkOrders, updateWorkOrderStatus } from "../api/api";
 
 function KioskLayout() {
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [activeStatus, setActiveStatus] = useState("NEW");
   const [loading, setLoading] = useState(true);
 
-  // Učitavanje naloga kada se komponenta prikaže
+  // Definisanje statusa sa srpskim nazivima i Bootstrap bojama
+  const statusTabs = {
+    NEW: { label: "NOVO", color: "secondary" },
+    IN_PROGRESS: { label: "U RADU", color: "primary" },
+    READY_FOR_ASSEMBLY: { label: "ZA SKLAPANJE", color: "warning" },
+    COMPLETED: { label: "ZAVRŠENO", color: "success" },
+  };
+
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
     try {
+      setLoading(true);
       const response = await getWorkOrders();
-      setOrders(response.data);
+      setAllOrders(response.data);
     } catch (error) {
       console.error("Greška pri učitavanju naloga:", error);
       alert("Ne mogu da učitam naloge. Da li je backend pokrenut?");
@@ -22,11 +31,10 @@ function KioskLayout() {
     }
   };
 
-  // Funkcija za promenu statusa
   const handleStatusChange = async (id, newStatus) => {
     try {
       await updateWorkOrderStatus(id, newStatus);
-      // Osvježi listu nakon promene
+      // Osveži listu nakon promene statusa
       fetchOrders();
     } catch (error) {
       console.error("Greška pri ažuriranju statusa:", error);
@@ -34,41 +42,22 @@ function KioskLayout() {
     }
   };
 
-  // Prevodi status na srpski za prikaz
-  const translateStatus = (status) => {
-    const map = {
-      NEW: "NOVO",
-      IN_PROGRESS: "U RADU",
-      READY_FOR_ASSEMBLY: "ZA SKLAPANJE",
-      COMPLETED: "ZAVRŠENO",
-    };
-    return map[status] || status;
-  };
+  // Filtriramo naloge samo za trenutno izabrani tab
+  const filteredOrders = allOrders.filter(
+    (order) => order.status === activeStatus,
+  );
 
-  // Boje za status (Bootstrap klase)
-  const getStatusColor = (status) => {
-    const map = {
-      NEW: "secondary",
-      IN_PROGRESS: "primary",
-      READY_FOR_ASSEMBLY: "warning",
-      COMPLETED: "success",
-    };
-    return map[status] || "secondary";
-  };
-
-  // Renderovanje dugmadi u zavisnosti od statusa
+  // Renderovanje dugmadi prilagođenih za klik na tabletu
   const renderActions = (order) => {
     if (order.status === "COMPLETED") {
-      return (
-        <span className="badge bg-success fs-2 p-3 w-100">✅ ZAVRŠENO</span>
-      );
+      return <span className="badge bg-success fs-5 p-2">✅ ZAVRŠENO</span>;
     }
 
     return (
-      <div className="d-flex flex-column gap-2 w-100">
+      <div className="d-flex gap-2 justify-content-end">
         {order.status === "NEW" && (
           <button
-            className="btn btn-primary btn-lg py-3 fs-3"
+            className="btn btn-primary btn-sm fw-bold px-3"
             onClick={() => handleStatusChange(order.id, "IN_PROGRESS")}
           >
             🚀 KRENI U RAD
@@ -77,7 +66,7 @@ function KioskLayout() {
 
         {(order.status === "IN_PROGRESS" || order.status === "NEW") && (
           <button
-            className="btn btn-warning btn-lg py-3 fs-3"
+            className="btn btn-warning btn-sm fw-bold px-3"
             onClick={() => handleStatusChange(order.id, "READY_FOR_ASSEMBLY")}
           >
             🧵 ZAVRŠENA MREŽICA
@@ -86,10 +75,10 @@ function KioskLayout() {
 
         {order.status !== "COMPLETED" && (
           <button
-            className="btn btn-success btn-lg py-3 fs-3"
+            className="btn btn-success btn-sm fw-bold px-3"
             onClick={() => handleStatusChange(order.id, "COMPLETED")}
           >
-            ✅ ZAVRŠENO KOMPLETNO
+            ✅ ZAVRŠENO
           </button>
         )}
       </div>
@@ -102,7 +91,7 @@ function KioskLayout() {
         className="container-fluid text-center bg-light"
         style={{ minHeight: "100vh" }}
       >
-        <h1 className="display-1 pt-5">⏳ Učitavanje...</h1>
+        <h1 className="display-4 pt-5">⏳ Učitavanje naloga...</h1>
       </div>
     );
   }
@@ -112,47 +101,72 @@ function KioskLayout() {
       className="container-fluid bg-light p-4"
       style={{ minHeight: "100vh" }}
     >
-      <h1 className="display-2 text-center mb-4">🏭 RADNI NALOZI</h1>
+      <h2 className="mb-4 text-dark fw-bold">🏭 ALUMAX KIOSK</h2>
 
-      {orders.length === 0 ? (
-        <div className="text-center mt-5">
-          <h2 className="display-4">📭 Nema aktivnih naloga</h2>
+      {/* TABS - Navigacija po statusima */}
+      <ul className="nav nav-pills nav-fill mb-4 gap-2">
+        {Object.keys(statusTabs).map((status) => {
+          const count = allOrders.filter((o) => o.status === status).length;
+          return (
+            <li className="nav-item" key={status}>
+              <button
+                className={`btn btn-${statusTabs[status].color} btn-lg w-100 ${
+                  activeStatus === status
+                    ? "active fw-bold border border-dark"
+                    : "opacity-75"
+                }`}
+                onClick={() => setActiveStatus(status)}
+                style={{ fontSize: "1.2rem" }}
+              >
+                {statusTabs[status].label} ({count})
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* PRIKAZ NALOGA U OBLIKU TABELE */}
+      {filteredOrders.length === 0 ? (
+        <div className="alert alert-secondary text-center mt-4 fs-4 border-0 shadow-sm">
+          📭 Nema naloga u ovoj kategoriji.
         </div>
       ) : (
-        <div className="row g-4">
-          {orders.map((order) => (
-            <div key={order.id} className="col-12 col-md-6 col-xl-4">
-              <div className="card h-100 shadow-lg p-3 border-0">
-                <div className="card-body d-flex flex-column">
-                  <h5 className="card-title display-6">
-                    {order.customerDescription || "Nepoznat kupac"}
-                  </h5>
-
-                  <div className="fs-3 my-2">
-                    <span className="badge bg-secondary me-2">
-                      📏 {order.inputWidth}mm
+        <div className="table-responsive bg-white shadow-sm rounded border">
+          <table className="table table-hover align-middle mb-0">
+            <thead className="table-dark">
+              <tr>
+                <th className="text-center" style={{ width: "80px" }}>
+                  ID
+                </th>
+                <th>Kupac / Opis</th>
+                <th className="text-center">Dimenzije (Š x V)</th>
+                {/* Ovde ćemo kasnije dodati kolonu za mere za sečenje */}
+                <th className="text-end pe-4">Akcije</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.map((order) => (
+                <tr key={order.id}>
+                  <td className="text-center fw-bold fs-5 text-secondary">
+                    #{order.id}
+                  </td>
+                  <td className="fs-5 fw-medium text-dark">
+                    {order.customerDescription || "Nema opisa"}
+                  </td>
+                  <td className="text-center fs-5">
+                    <span className="badge bg-secondary me-1">
+                      {order.inputWidth} mm
                     </span>
-                    <span className="badge bg-secondary">
-                      📐 {order.inputHeight}mm
+                    x
+                    <span className="badge bg-secondary ms-1">
+                      {order.inputHeight} mm
                     </span>
-                  </div>
-
-                  <p className="fs-4 mt-2">
-                    Status:
-                    <span
-                      className={`badge bg-${getStatusColor(order.status)} fs-3 ms-2 p-2`}
-                    >
-                      {translateStatus(order.status)}
-                    </span>
-                  </p>
-
-                  <hr className="my-3" />
-
-                  <div className="mt-auto">{renderActions(order)}</div>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                  <td className="text-end pe-3">{renderActions(order)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
