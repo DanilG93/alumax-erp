@@ -17,6 +17,14 @@ export const createTemplate = (template) => api.post("/templates", template);
 export const deleteTemplate = (id) => api.delete(`/templates/${id}`);
 export const createWorkOrder = (workOrder) =>
   api.post("/work-orders", workOrder);
-// NOVO: Povlačenje predloga kupaca
+
 export const getCustomerSuggestions = () =>
   api.get("/work-orders/customers/suggestions");
+
+export const getAllOrderItems = () => {
+  return api.get("/work-orders/items");
+};
+
+export const updateOrderItemStatus = (itemId, newStatus) => {
+  return api.put(`/work-orders/items/${itemId}/status?status=${newStatus}`);
+};
