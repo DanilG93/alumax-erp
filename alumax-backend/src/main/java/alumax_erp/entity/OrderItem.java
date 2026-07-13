@@ -1,5 +1,6 @@
 package alumax_erp.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,7 @@ public class OrderItem {
     private Long id;
 
     @ManyToOne
+    @JsonIgnoreProperties("items")
     @JoinColumn(name = "work_order_id", nullable = false)
     private WorkOrder workOrder;
 
