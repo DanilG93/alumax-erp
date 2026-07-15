@@ -7,7 +7,8 @@ function App() {
   return (
     <Routes>
       <Route path="/kiosk" element={<KioskLayout />} />
-      <Route path="/admin" element={<SettingsLayout />} />
+      <Route path="/admin" element={<AdminLayout />} />
+      <Route path="/settings" element={<SettingsLayout />} />
       <Route path="/" element={<Navigate to="/kiosk" replace />} />
     </Routes>
   );
