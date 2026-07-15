@@ -1,5 +1,6 @@
 package alumax_erp.service;
 
+import alumax_erp.entity.CuttingRule;
 import alumax_erp.entity.ProductTemplate;
 import alumax_erp.repository.ProductTemplateRepository;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,13 @@ public class ProductTemplateService {
     }
 
     public ProductTemplate saveTemplate(ProductTemplate template) {
+
+        if (template.getCuttingRules() != null) {
+            for (CuttingRule rule : template.getCuttingRules()) {
+                rule.setProductTemplate(template);
+            }
+        }
+
         return repository.save(template);
     }
 
