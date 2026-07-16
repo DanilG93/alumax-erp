@@ -34,4 +34,27 @@ public class ProductTemplateService {
     public void deleteTemplate(Long id) {
         repository.deleteById(id);
     }
+
+    public ProductTemplate updateTemplate(Long id, ProductTemplate updatedTemplate) {
+
+        ProductTemplate existingTemplate = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Šablon nije pronađen!"));
+
+        existingTemplate.setName(updatedTemplate.getName());
+        existingTemplate.setNotes(updatedTemplate.getNotes());
+
+
+        if (existingTemplate.getCuttingRules() != null) {
+            existingTemplate.getCuttingRules().clear();
+        }
+
+        if (updatedTemplate.getCuttingRules() != null) {
+            for (CuttingRule rule : updatedTemplate.getCuttingRules()) {
+                rule.setProductTemplate(existingTemplate);
+                existingTemplate.getCuttingRules().add(rule);
+            }
+        }
+
+        return repository.save(existingTemplate);
+    }
 }

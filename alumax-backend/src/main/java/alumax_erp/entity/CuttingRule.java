@@ -40,4 +40,7 @@ public class CuttingRule {
 
     @Column(name = "value")
     private Double value;
+
+    @Column(name = "variable_name", length = 10)
+    private String variableName;
 }

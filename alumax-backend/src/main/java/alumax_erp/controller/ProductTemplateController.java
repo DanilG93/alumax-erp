@@ -3,6 +3,7 @@ package alumax_erp.controller;
 import alumax_erp.entity.ProductTemplate;
 import alumax_erp.service.ProductTemplateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,12 @@ public class ProductTemplateController {
     @DeleteMapping("/{id}")
     public void deleteTemplate(@PathVariable Long id) {
         service.deleteTemplate(id);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductTemplate> updateTemplate(@PathVariable Long id, @RequestBody ProductTemplate templateDetails) {
+        ProductTemplate updatedTemplate = service.updateTemplate(id, templateDetails);
+        return ResponseEntity.ok(updatedTemplate);
     }
 
 }

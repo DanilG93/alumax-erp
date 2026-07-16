@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { getTemplates, createTemplate, deleteTemplate } from "../api/api";
+import {
+  getTemplates,
+  createTemplate,
+  deleteTemplate,
+  updateTemplate,
+} from "../api/api";
 
 function SettingsLayout() {
   const [templates, setTemplates] = useState([]);
@@ -7,13 +12,16 @@ function SettingsLayout() {
   const [rules, setRules] = useState([]);
   const [notes, setNotes] = useState([]);
 
-  // Koristimo zajednički inputValue za unos sa ekrana
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [editingRuleIndex, setEditingRuleIndex] = useState(null);
+
   const [newRule, setNewRule] = useState({
     elementName: "",
     targetDimension: "HEIGHT",
     operation: "SUBTRACT",
     ruleType: "FIXED",
-    inputValue: "", // Ovo zamenjuje dosadašnji 'value' u state-u
+    inputValue: "",
+    variableName: "",
     quantityMultiplier: 1,
   });
 
@@ -42,18 +50,19 @@ function SettingsLayout() {
       return;
     }
 
-    // Pakujemo objekat onako kako Java baza to očekuje
     const ruleToSave = {
       elementName: newRule.elementName,
-      // Za formulu nam ne trebaju dimenzija i operacija iz padajućeg menija
       targetDimension:
         newRule.ruleType === "FIXED" ? newRule.targetDimension : null,
       operation: newRule.ruleType === "FIXED" ? newRule.operation : null,
       ruleType: newRule.ruleType,
       quantityMultiplier: newRule.quantityMultiplier,
+      variableName:
+        newRule.variableName.trim() !== ""
+          ? newRule.variableName.trim().toUpperCase()
+          : null,
     };
 
-    // Skretnica: Gde ide vrednost sa ekrana?
     if (newRule.ruleType === "FIXED") {
       ruleToSave.value = parseFloat(newRule.inputValue);
       ruleToSave.formula = null;
@@ -62,17 +71,54 @@ function SettingsLayout() {
       ruleToSave.formula = newRule.inputValue;
     }
 
-    setRules([...rules, ruleToSave]);
+    if (editingRuleIndex !== null) {
+      const updatedRules = [...rules];
+      updatedRules[editingRuleIndex] = ruleToSave;
+      setRules(updatedRules);
+      setEditingRuleIndex(null);
+    } else {
+      setRules([...rules, ruleToSave]);
+    }
+
     setNewRule({
-      ...newRule,
       elementName: "",
+      targetDimension: "HEIGHT",
+      operation: "SUBTRACT",
+      ruleType: "FIXED",
       inputValue: "",
+      variableName: "",
       quantityMultiplier: 1,
     });
   };
 
+  const handleEditRule = (index) => {
+    const r = rules[index];
+    setNewRule({
+      elementName: r.elementName,
+      targetDimension: r.targetDimension || "HEIGHT",
+      operation: r.operation || "SUBTRACT",
+      ruleType: r.ruleType || "FIXED",
+      inputValue: r.ruleType === "FIXED" ? r.value : r.formula,
+      variableName: r.variableName || "",
+      quantityMultiplier: r.quantityMultiplier,
+    });
+    setEditingRuleIndex(index);
+  };
+
   const handleRemoveRule = (indexToRemove) => {
     setRules(rules.filter((_, index) => index !== indexToRemove));
+    if (editingRuleIndex === indexToRemove) {
+      setEditingRuleIndex(null);
+      setNewRule({
+        elementName: "",
+        targetDimension: "HEIGHT",
+        operation: "SUBTRACT",
+        ruleType: "FIXED",
+        inputValue: "",
+        variableName: "",
+        quantityMultiplier: 1,
+      });
+    }
   };
 
   const handleAddNote = () => {
@@ -83,6 +129,42 @@ function SettingsLayout() {
 
   const handleRemoveNote = (indexToRemove) => {
     setNotes(notes.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleEditTemplate = (t) => {
+    setEditingTemplateId(t.id);
+    setTemplateName(t.name);
+    setNotes(t.notes ? [...t.notes] : []);
+
+    const loadedRules = (t.cuttingRules || []).map((r) => ({
+      elementName: r.elementName,
+      targetDimension: r.targetDimension || "HEIGHT",
+      operation: r.operation || "SUBTRACT",
+      ruleType: r.ruleType || "FIXED",
+      inputValue: r.ruleType === "FIXED" ? r.value : r.formula,
+      variableName: r.variableName || "",
+      quantityMultiplier: r.quantityMultiplier,
+    }));
+    setRules(loadedRules);
+    setEditingRuleIndex(null);
+    window.scrollTo(0, 0);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTemplateId(null);
+    setTemplateName("");
+    setRules([]);
+    setNotes([]);
+    setEditingRuleIndex(null);
+    setNewRule({
+      elementName: "",
+      targetDimension: "HEIGHT",
+      operation: "SUBTRACT",
+      ruleType: "FIXED",
+      inputValue: "",
+      variableName: "",
+      quantityMultiplier: 1,
+    });
   };
 
   const handleSaveTemplate = async () => {
@@ -98,11 +180,14 @@ function SettingsLayout() {
     };
 
     try {
-      await createTemplate(payload);
-      alert("Šablon uspešno sačuvan!");
-      setTemplateName("");
-      setRules([]);
-      setNotes([]);
+      if (editingTemplateId) {
+        await updateTemplate(editingTemplateId, payload);
+        alert("Šablon uspešno IZMENJEN!");
+      } else {
+        await createTemplate(payload);
+        alert("Novi šablon uspešno SAČUVAN!");
+      }
+      handleCancelEdit();
       fetchTemplates();
     } catch (error) {
       console.error("Greška:", error);
@@ -134,18 +219,27 @@ function SettingsLayout() {
           </li>
           <li className="nav-item">
             <a href="#" className="nav-link active fw-bold fs-5">
-              ⚙️ Podešavanja
+              Podešavanja
             </a>
           </li>
         </ul>
       </div>
 
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
-        <h2 className="mb-4 fw-bold text-dark">Podešavanja Šablona</h2>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h2 className="fw-bold text-dark">Podešavanja Šablona</h2>
+          {editingTemplateId && (
+            <span className="badge bg-warning text-dark fs-5 shadow-sm">
+              REŽIM IZMENE AKTIVAN
+            </span>
+          )}
+        </div>
 
         <div className="row g-4">
           <div className="col-xl-7">
-            <div className="card p-4 shadow-sm border-0 rounded-4">
+            <div
+              className={`card p-4 shadow-sm border-0 rounded-4 ${editingTemplateId ? "border border-warning border-3" : ""}`}
+            >
               <div className="mb-4">
                 <label className="form-label fw-bold">Ime Šablona</label>
                 <input
@@ -157,25 +251,27 @@ function SettingsLayout() {
               </div>
 
               {/* SEKCIJA ZA PRAVILA */}
-              <div className="bg-light p-3 rounded-3 mb-4 border">
-                <h6 className="fw-bold mb-3">📏 Pravilo sečenja</h6>
+              <div
+                className={`p-3 rounded-3 mb-4 border ${editingRuleIndex !== null ? "bg-warning bg-opacity-10 border-warning" : "bg-light"}`}
+              >
+                <h6 className="fw-bold mb-3">Pravilo sečenja</h6>
 
                 <div className="row g-2 mb-2">
-                  <div className="col-md-5">
+                  <div className="col-md-4">
                     <label className="form-label small fw-bold text-muted mb-1">
-                      Naziv dela (npr. RAM)
+                      Naziv dela
                     </label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Unesite naziv..."
+                      placeholder="Npr. RAM"
                       value={newRule.elementName}
                       onChange={(e) =>
                         setNewRule({ ...newRule, elementName: e.target.value })
                       }
                     />
                   </div>
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label className="form-label small fw-bold text-muted mb-1">
                       Tip pravila
                     </label>
@@ -190,7 +286,7 @@ function SettingsLayout() {
                       <option value="FORMULA">Specijalna Formula</option>
                     </select>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <label className="form-label small fw-bold text-muted mb-1">
                       Količina
                     </label>
@@ -207,10 +303,23 @@ function SettingsLayout() {
                       }
                     />
                   </div>
+                  <div className="col-md-3">
+                    <label className="form-label small fw-bold text-info mb-1">
+                      Oznaka (Opciono)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control border-info fw-bold"
+                      placeholder="Npr. P"
+                      value={newRule.variableName}
+                      onChange={(e) =>
+                        setNewRule({ ...newRule, variableName: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="row g-2 align-items-end">
-                  {/* Ako je formula sakrivamo visinu i operaciju */}
                   {newRule.ruleType === "FIXED" && (
                     <>
                       <div className="col-md-4">
@@ -264,7 +373,7 @@ function SettingsLayout() {
                     </label>
                     <input
                       type="text"
-                      className="form-control"
+                      className="form-control fw-bold"
                       placeholder={
                         newRule.ruleType === "FIXED"
                           ? "Npr. 80"
@@ -278,10 +387,12 @@ function SettingsLayout() {
                   </div>
                   <div className="col-12 mt-3">
                     <button
-                      className="btn btn-outline-primary w-100 fw-bold"
+                      className={`btn w-100 fw-bold ${editingRuleIndex !== null ? "btn-warning text-dark" : "btn-outline-primary"}`}
                       onClick={handleAddRule}
                     >
-                      ➕ DODAJ PRAVILO U LISTU
+                      {editingRuleIndex !== null
+                        ? "SAČUVAJ IZMENE U PRAVILU"
+                        : "DODAJ PRAVILO U LISTU"}
                     </button>
                   </div>
                 </div>
@@ -290,7 +401,7 @@ function SettingsLayout() {
               {/* SEKCIJA ZA NAPOMENE */}
               <div className="bg-light p-3 rounded-3 mb-4 border">
                 <h6 className="fw-bold text-dark mb-3">
-                  📝 Tekstualne napomene za radni nalog
+                  Tekstualne napomene za radni nalog
                 </h6>
                 <div className="d-flex gap-2">
                   <input
@@ -321,20 +432,25 @@ function SettingsLayout() {
                       <strong className="small text-muted text-uppercase">
                         Pravila za sečenje
                       </strong>
-                      <ul className="list-group mt-1">
+                      <ul className="list-group mt-2">
                         {rules.map((r, idx) => (
                           <li
                             key={idx}
-                            className="list-group-item d-flex justify-content-between align-items-center py-1"
+                            className={`list-group-item d-flex justify-content-between align-items-center py-2 ${editingRuleIndex === idx ? "list-group-item-warning" : ""}`}
                           >
                             <span>
-                              <strong>{r.elementName}</strong>{" "}
+                              <strong className="fs-6">{r.elementName}</strong>
                               <span className="badge bg-secondary ms-2">
                                 {r.quantityMultiplier} kom
                               </span>
+                              {r.variableName && (
+                                <span className="badge bg-info text-dark ms-2">
+                                  Oznaka: {r.variableName}
+                                </span>
+                              )}
                             </span>
                             <div className="d-flex align-items-center gap-3">
-                              <small className="text-muted">
+                              <span className="text-muted fw-bold">
                                 {r.ruleType === "FIXED" ? (
                                   <>
                                     {r.targetDimension === "HEIGHT"
@@ -344,17 +460,25 @@ function SettingsLayout() {
                                     {r.value} mm
                                   </>
                                 ) : (
-                                  <span className="text-primary fw-bold">
+                                  <span className="text-primary">
                                     Formula: {r.formula}
                                   </span>
                                 )}
-                              </small>
-                              <button
-                                className="btn btn-sm btn-link text-danger p-0"
-                                onClick={() => handleRemoveRule(idx)}
-                              >
-                                ✖
-                              </button>
+                              </span>
+                              <div className="btn-group">
+                                <button
+                                  className="btn btn-sm btn-outline-primary"
+                                  onClick={() => handleEditRule(idx)}
+                                >
+                                  Izmeni
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleRemoveRule(idx)}
+                                >
+                                  Obriši
+                                </button>
+                              </div>
                             </div>
                           </li>
                         ))}
@@ -366,18 +490,18 @@ function SettingsLayout() {
                       <strong className="small text-muted text-uppercase">
                         Napomene
                       </strong>
-                      <ul className="list-group mt-1">
+                      <ul className="list-group mt-2">
                         {notes.map((note, idx) => (
                           <li
                             key={idx}
-                            className="list-group-item d-flex justify-content-between align-items-center py-1 bg-light"
+                            className="list-group-item d-flex justify-content-between align-items-center py-2 bg-light"
                           >
-                            <small>📌 {note}</small>
+                            <span>{note}</span>
                             <button
-                              className="btn btn-sm btn-link text-danger p-0"
+                              className="btn btn-sm btn-outline-danger"
                               onClick={() => handleRemoveNote(idx)}
                             >
-                              ✖
+                              Obriši
                             </button>
                           </li>
                         ))}
@@ -387,12 +511,22 @@ function SettingsLayout() {
                 </div>
               )}
 
-              <button
-                className="btn btn-success btn-lg w-100 fw-bold shadow"
-                onClick={handleSaveTemplate}
-              >
-                💾 SAČUVAJ KOMPLETAN ŠABLON
-              </button>
+              <div className="d-flex gap-2">
+                <button
+                  className={`btn ${editingTemplateId ? "btn-warning text-dark" : "btn-success"} btn-lg flex-grow-1 fw-bold shadow`}
+                  onClick={handleSaveTemplate}
+                >
+                  {editingTemplateId ? "SAČUVAJ IZMENE" : "SAČUVAJ NOVI ŠABLON"}
+                </button>
+                {editingTemplateId && (
+                  <button
+                    className="btn btn-secondary btn-lg fw-bold shadow"
+                    onClick={handleCancelEdit}
+                  >
+                    Otkaži
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -404,14 +538,24 @@ function SettingsLayout() {
                   key={t.id}
                   className="border rounded p-3 mb-3 bg-white shadow-sm"
                 >
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <strong className="fs-5 text-primary">⚙️ {t.name}</strong>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => deleteTemplate(t.id).then(fetchTemplates)}
-                    >
-                      🗑️ Brisanje
-                    </button>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <strong className="fs-5 text-primary">{t.name}</strong>
+                    <div className="btn-group">
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => handleEditTemplate(t)}
+                      >
+                        Izmeni
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() =>
+                          deleteTemplate(t.id).then(fetchTemplates)
+                        }
+                      >
+                        Obriši
+                      </button>
+                    </div>
                   </div>
 
                   {t.cuttingRules && t.cuttingRules.length > 0 && (
@@ -423,20 +567,30 @@ function SettingsLayout() {
                         {t.cuttingRules.map((rule, idx) => (
                           <li
                             key={idx}
-                            className="small border-bottom pb-1 mb-1"
+                            className="small border-bottom pb-1 mb-1 d-flex justify-content-between"
                           >
-                            {rule.quantityMultiplier}x{" "}
-                            <strong>{rule.elementName}</strong>
-                            <span className="float-end text-muted">
+                            <span>
+                              {rule.quantityMultiplier}x{" "}
+                              <strong>{rule.elementName}</strong>
+                              {rule.variableName && (
+                                <span className="badge bg-info text-dark ms-1">
+                                  [{rule.variableName}]
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-muted">
                               {rule.ruleType === "FIXED" ? (
                                 <>
-                                  ({rule.targetDimension}{" "}
+                                  (
+                                  {rule.targetDimension === "HEIGHT"
+                                    ? "H"
+                                    : "W"}{" "}
                                   {rule.operation === "SUBTRACT" ? "-" : "+"}{" "}
                                   {rule.value})
                                 </>
                               ) : (
-                                <span className="text-info fw-bold">
-                                  [Formula: {rule.formula}]
+                                <span className="text-primary fw-bold">
+                                  [{rule.formula}]
                                 </span>
                               )}
                             </span>
@@ -454,7 +608,7 @@ function SettingsLayout() {
                       <ul className="list-unstyled ms-2 mb-0 mt-1">
                         {t.notes.map((note, idx) => (
                           <li key={idx} className="small text-secondary mb-1">
-                            📌 {note}
+                            • {note}
                           </li>
                         ))}
                       </ul>
