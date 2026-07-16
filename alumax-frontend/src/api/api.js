@@ -28,3 +28,6 @@ export const getAllOrderItems = () => {
 export const updateOrderItemStatus = (itemId, newStatus) => {
   return api.put(`/work-orders/items/${itemId}/status?status=${newStatus}`);
 };
+
+export const updateTemplate = (id, data) =>
+  axios.put(`${API_BASE_URL}/templates/${id}`, data);

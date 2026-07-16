@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -19,6 +20,11 @@ public class ProductTemplate {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @OneToMany(mappedBy = "productTemplate", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "productTemplate", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CuttingRule> cuttingRules;
+
+    @ElementCollection
+    @CollectionTable(name = "template_notes", joinColumns = @JoinColumn(name = "template_id"))
+    @Column(name = "note")
+    private List<String> notes = new ArrayList<>();
 }
