@@ -25,7 +25,7 @@ public class WorkOrderService {
     }
 
     public List<String> getCustomerSuggestions() {
-        return workOrderRepository.findDistinctCustomerDescriptions();
+        return workOrderRepository.findDistinctCustomerNames();
     }
 
     public WorkOrder saveWorkOrder(WorkOrder workOrder) {

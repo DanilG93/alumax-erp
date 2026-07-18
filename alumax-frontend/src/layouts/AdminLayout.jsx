@@ -1,87 +1,142 @@
 import { useState, useEffect } from "react";
-import { createWorkOrder, getCustomerSuggestions } from "../api/api";
+import {
+  createWorkOrder,
+  getCustomerSuggestions,
+  getTemplates,
+} from "../api/api";
 
 function AdminLayout() {
-  // 1. Podaci o kupcu (Glava naloga)
   const [orderHeader, setOrderHeader] = useState({
+    customerName: "",
     protocolNumber: "",
-    customerDescription: "",
-    orderType: "NEW_ORDER",
-    deliveryRequired: false,
+    profileColor: "Bela", // <-- Default boja profila
+    deliveryDate: "",
+    isUrgent: false,
+    requiresDelivery: false,
     deliveryAddress: "",
   });
 
-  // 2. Podaci za trenutni komarnik koji se unosi
   const initialItemState = {
-    inputWidth: "",
-    inputHeight: "",
-    plisseType: "VRSTA_1",
-    isDouble: false,
-    hasThreshold: false,
-    openingDirection: "RIGHT",
+    type: "NEW_ORDER",
+    productTemplateId: "",
+    widthW: "",
+    heightH: "",
+    quantity: 1,
+    openingDirection: "LEFT", // <-- Default smer otvaranja
+    note: "",
   };
-  const [currentItem, setCurrentItem] = useState(initialItemState);
 
-  // 3. Niz svih dodatih komarnika u ovaj nalog
+  const [currentItem, setCurrentItem] = useState(initialItemState);
   const [items, setItems] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      try {
-        const response = await getCustomerSuggestions();
-        setSuggestions(response.data);
-      } catch (error) {
-        console.error("Greška pri učitavanju predloga kupaca:", error);
-      }
-    };
     fetchSuggestions();
+    fetchTemplates();
   }, []);
 
-  // Funkcija za dodavanje komarnika u listu
-  const handleAddItem = () => {
-    if (!currentItem.inputWidth || !currentItem.inputHeight) {
-      alert("Molimo vas unesite širinu i visinu komarnika!");
-      return;
+  const fetchSuggestions = async () => {
+    try {
+      const response = await getCustomerSuggestions();
+      setSuggestions(response.data);
+    } catch (error) {
+      console.error("Greška pri učitavanju predloga kupaca:", error);
     }
-    setItems([...items, currentItem]);
-    setCurrentItem(initialItemState); // Resetuj formu za sledeći komarnik
   };
 
-  // Funkcija za brisanje komarnika iz liste pre čuvanja
+  const fetchTemplates = async () => {
+    try {
+      const response = await getTemplates();
+      setTemplates(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("Greška pri učitavanju šablona:", error);
+    }
+  };
+
+  const getDayOfWeek = (dateString) => {
+    if (!dateString) return "";
+    const days = [
+      "Nedelja",
+      "Ponedeljak",
+      "Utorak",
+      "Sreda",
+      "Četvrtak",
+      "Petak",
+      "Subota",
+    ];
+    const d = new Date(dateString);
+    return days[d.getDay()];
+  };
+
+  const handleAddItem = () => {
+    if (!currentItem.widthW || !currentItem.heightH) {
+      alert("Molimo vas unesite širinu i visinu!");
+      return;
+    }
+    if (currentItem.type === "NEW_ORDER" && !currentItem.productTemplateId) {
+      alert("Molimo izaberite vrstu proizvoda (Šablon)!");
+      return;
+    }
+
+    const itemToSave = {
+      type: currentItem.type,
+      widthW: parseFloat(currentItem.widthW),
+      heightH: parseFloat(currentItem.heightH),
+      quantity: parseInt(currentItem.quantity, 10),
+      openingDirection: currentItem.openingDirection,
+      note: currentItem.note,
+    };
+
+    if (currentItem.productTemplateId) {
+      itemToSave.productTemplate = { id: currentItem.productTemplateId };
+    }
+
+    setItems([...items, itemToSave]);
+    // Resetujemo unos, ali čuvamo izabrani tip i default smer
+    setCurrentItem({ ...initialItemState, type: currentItem.type });
+  };
+
   const handleRemoveItem = (indexToRemove) => {
     setItems(items.filter((_, index) => index !== indexToRemove));
   };
 
-  // Slanje kompletnog naloga na backend
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     if (items.length === 0) {
-      alert("Nalog mora imati bar jedan komarnik!");
+      alert("Nalog mora imati bar jednu stavku!");
+      return;
+    }
+    if (!orderHeader.customerName) {
+      alert("Unesite ime naručioca!");
       return;
     }
 
-    const payload = {
-      ...orderHeader,
-      items: items,
-    };
+    const payload = { ...orderHeader, items: items };
 
     try {
       await createWorkOrder(payload);
-      alert("Kompletan nalog uspešno kreiran!");
-
+      alert("Nalog je uspešno poslat u radionicu!");
+      // Reset celog ekrana, vraćamo default boju na Belu
       setOrderHeader({
+        customerName: "",
         protocolNumber: "",
-        customerDescription: "",
-        orderType: "NEW_ORDER",
-        deliveryRequired: false,
+        profileColor: "Bela",
+        deliveryDate: "",
+        isUrgent: false,
+        requiresDelivery: false,
         deliveryAddress: "",
       });
       setItems([]);
     } catch (error) {
       console.error("Greška pri kreiranju naloga:", error);
-      alert("Greška pri kreiranju naloga.");
+      alert("Došlo je do greške pri snimanju naloga.");
     }
+  };
+
+  const selectedTemplateName = (templateId) => {
+    const t = templates.find((t) => t.id === parseInt(templateId));
+    return t ? t.name : "Nije izabrano";
   };
 
   return (
@@ -97,24 +152,19 @@ function AdminLayout() {
         <h3 className="mb-4 text-center fw-bold mt-2">Alumax ERP</h3>
         <hr />
         <ul className="nav nav-pills flex-column mb-auto gap-2">
+          <li>
+            <a href="/kiosk" className="nav-link text-white fs-5">
+              Kiosk
+            </a>
+          </li>
           <li className="nav-item">
             <a href="#" className="nav-link active fw-bold fs-5">
-              📝 Nova Narudžbina
+              Nova Narudžbina
             </a>
           </li>
           <li>
-            <a href="#" className="nav-link text-white fs-5 opacity-75">
-              📋 Lista Naloga
-            </a>
-          </li>
-          <li>
-            <a href="#" className="nav-link text-white fs-5 opacity-75">
-              ⚙️ Podešavanja
-            </a>
-          </li>
-          <li>
-            <a href="#" className="nav-link text-white fs-5 opacity-75">
-              🚚 Logistika
+            <a href="/settings" className="nav-link text-white fs-5">
+              Podešavanja
             </a>
           </li>
         </ul>
@@ -122,28 +172,49 @@ function AdminLayout() {
 
       {/* GLAVNI SADRŽAJ */}
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
-        <h2 className="mb-4 fw-bold text-dark">
-          Kreiranje Novog Radnog Naloga
-        </h2>
+        {/* SEKCIJA 1: IDENTIFIKACIJA KUPCA I ROKOVI */}
+        <div
+          className={`card p-4 shadow-sm border-0 mb-4 rounded-4 ${orderHeader.isUrgent ? "border border-danger border-3 bg-danger bg-opacity-10" : "bg-white"}`}
+        >
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="text-muted fw-bold mb-0">1. GLAVNI PODACI NALOGA</h5>
+            <div className="form-check form-switch fs-4 d-flex align-items-center">
+              <input
+                className={`form-check-input mt-0 ${orderHeader.isUrgent ? "bg-danger border-danger" : ""}`}
+                type="checkbox"
+                role="switch"
+                id="urgentSwitch"
+                checked={orderHeader.isUrgent}
+                onChange={(e) =>
+                  setOrderHeader({ ...orderHeader, isUrgent: e.target.checked })
+                }
+                style={{ cursor: "pointer" }}
+              />
+              <label
+                className="form-check-label fw-bold text-danger ms-2"
+                htmlFor="urgentSwitch"
+                style={{ cursor: "pointer" }}
+              >
+                HITNO
+              </label>
+            </div>
+          </div>
 
-        {/* SEKCIJA 1: IDENTIFIKACIJA KUPCA */}
-        <div className="card p-4 shadow-sm border-0 mb-4 rounded-4">
-          <h5 className="text-muted fw-bold mb-3">
-            1. IDENTIFIKACIJA I ISPORUKA
-          </h5>
-          <div className="row g-3 align-items-center">
-            <div className="col-md-5">
-              <label className="form-label fw-medium">Kupac / Opis</label>
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label fw-medium text-dark">
+                Kupac / Naručilac
+              </label>
               <input
                 type="text"
                 className="form-control form-control-lg"
                 list="customer-suggestions"
-                placeholder="Kreni da kucaš..."
-                value={orderHeader.customerDescription}
+                placeholder="Ime i prezime ili firma"
+                value={orderHeader.customerName}
                 onChange={(e) =>
                   setOrderHeader({
                     ...orderHeader,
-                    customerDescription: e.target.value,
+                    customerName: e.target.value,
                   })
                 }
               />
@@ -153,12 +224,15 @@ function AdminLayout() {
                 ))}
               </datalist>
             </div>
-            <div className="col-md-3">
-              <label className="form-label fw-medium">Broj Protokola</label>
+
+            <div className="col-md-2">
+              <label className="form-label fw-medium text-dark">
+                Broj Protokola
+              </label>
               <input
                 type="text"
                 className="form-control form-control-lg"
-                placeholder="Automatski (+1)"
+                placeholder="Automatski"
                 value={orderHeader.protocolNumber}
                 onChange={(e) =>
                   setOrderHeader({
@@ -168,37 +242,76 @@ function AdminLayout() {
                 }
               />
             </div>
-            <div className="col-md-4 mt-4">
-              <div className="form-check form-switch fs-5 ms-md-3">
+
+            <div className="col-md-3">
+              <label className="form-label fw-medium text-dark">
+                Boja Profila
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="Npr. Bela, Antracit..."
+                value={orderHeader.profileColor}
+                onChange={(e) =>
+                  setOrderHeader({
+                    ...orderHeader,
+                    profileColor: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label fw-medium text-dark">
+                Datum završetka
+                {orderHeader.deliveryDate && (
+                  <span className="ms-2 text-primary fw-bold">
+                    ({getDayOfWeek(orderHeader.deliveryDate)})
+                  </span>
+                )}
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-lg fw-bold text-primary"
+                value={orderHeader.deliveryDate}
+                onChange={(e) =>
+                  setOrderHeader({
+                    ...orderHeader,
+                    deliveryDate: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div className="col-12 mt-3 pt-3 border-top">
+              <div className="form-check form-switch fs-5 mb-2">
                 <input
                   className="form-check-input"
                   type="checkbox"
+                  role="switch"
                   id="deliverySwitch"
-                  checked={orderHeader.deliveryRequired}
+                  checked={orderHeader.requiresDelivery}
                   onChange={(e) =>
                     setOrderHeader({
                       ...orderHeader,
-                      deliveryRequired: e.target.checked,
+                      requiresDelivery: e.target.checked,
                     })
                   }
+                  style={{ cursor: "pointer" }}
                 />
                 <label
-                  className="form-check-label fw-bold"
+                  className="form-check-label fw-bold text-dark ms-2"
                   htmlFor="deliverySwitch"
+                  style={{ cursor: "pointer" }}
                 >
-                  🚚 Potrebna Isporuka
+                  Potrebna Isporuka
                 </label>
               </div>
-            </div>
-            {orderHeader.deliveryRequired && (
-              <div className="col-12 mt-3">
-                <label className="form-label fw-medium text-primary">
-                  Unesite adresu za isporuku
-                </label>
+              {orderHeader.requiresDelivery && (
                 <input
                   type="text"
                   className="form-control form-control-lg border-primary"
-                  placeholder="Karađorđeva 15..."
+                  placeholder="Unesite tačnu adresu za isporuku..."
                   value={orderHeader.deliveryAddress}
                   onChange={(e) =>
                     setOrderHeader({
@@ -207,149 +320,154 @@ function AdminLayout() {
                     })
                   }
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* SEKCIJA 2: KONFIGURACIJA KOMARNIKA */}
-        <div
-          className="card p-4 shadow-sm border-primary border mb-4 rounded-4"
-          style={{ backgroundColor: "#f8fbff" }}
-        >
-          <h5 className="text-primary fw-bold mb-3">
-            2. KONFIGURACIJA KOMARNIKA
-          </h5>
+        {/* SEKCIJA 2: KONFIGURACIJA STAVKE */}
+        <div className="card p-4 shadow-sm border-primary border-top border-4 mb-4 rounded-4 bg-white">
+          <h5 className="text-primary fw-bold mb-4">2. KONFIGURACIJA STAVKE</h5>
 
-          <div className="row g-4 mb-4">
-            <div className="col-md-3">
-              <label className="form-label fw-bold">Širina (mm)</label>
-              <input
-                type="number"
-                className="form-control form-control-lg"
-                placeholder="Širina"
-                value={currentItem.inputWidth}
-                onChange={(e) =>
-                  setCurrentItem({ ...currentItem, inputWidth: e.target.value })
-                }
-              />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label fw-bold">Visina (mm)</label>
-              <input
-                type="number"
-                className="form-control form-control-lg"
-                placeholder="Visina"
-                value={currentItem.inputHeight}
+          {/* VELIKI PREKIDAČ ZA TIP POSLA */}
+          <div className="d-flex w-100 mb-4 bg-light p-1 rounded-pill border">
+            <button
+              className={`btn rounded-pill flex-fill fs-5 fw-bold py-2 ${currentItem.type === "NEW_ORDER" ? "btn-primary shadow" : "btn-light text-muted"}`}
+              onClick={() =>
+                setCurrentItem({ ...currentItem, type: "NEW_ORDER" })
+              }
+            >
+              NOVA IZRADA
+            </button>
+            <button
+              className={`btn rounded-pill flex-fill fs-5 fw-bold py-2 ${currentItem.type === "SERVICE" ? "btn-warning text-dark shadow" : "btn-light text-muted"}`}
+              onClick={() =>
+                setCurrentItem({ ...currentItem, type: "SERVICE" })
+              }
+            >
+              SERVIS / POPRAVKA
+            </button>
+          </div>
+
+          <div className="row g-3 mb-3 align-items-end">
+            <div className="col-md-4">
+              <label className="form-label fw-bold text-dark">
+                Vrsta proizvoda (Šablon)
+              </label>
+              <select
+                className="form-select form-select-lg border-primary"
+                value={currentItem.productTemplateId}
                 onChange={(e) =>
                   setCurrentItem({
                     ...currentItem,
-                    inputHeight: e.target.value,
+                    productTemplateId: e.target.value,
                   })
+                }
+              >
+                <option value="">-- Izaberi šablon --</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-2">
+              <label className="form-label fw-bold">Širina (W) mm</label>
+              <input
+                type="number"
+                className="form-control form-control-lg fw-bold"
+                placeholder="W"
+                value={currentItem.widthW}
+                onChange={(e) =>
+                  setCurrentItem({ ...currentItem, widthW: e.target.value })
                 }
               />
             </div>
-            <div className="col-md-6 d-flex align-items-end">
-              <div className="w-100 d-flex gap-2">
+
+            <div className="col-md-2">
+              <label className="form-label fw-bold">Visina (H) mm</label>
+              <input
+                type="number"
+                className="form-control form-control-lg fw-bold"
+                placeholder="H"
+                value={currentItem.heightH}
+                onChange={(e) =>
+                  setCurrentItem({ ...currentItem, heightH: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="col-md-1">
+              <label className="form-label fw-bold">Komada</label>
+              <input
+                type="number"
+                className="form-control form-control-lg text-center fw-bold bg-light"
+                min="1"
+                value={currentItem.quantity}
+                onChange={(e) =>
+                  setCurrentItem({ ...currentItem, quantity: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label fw-bold">Smer Otvaranja</label>
+              <div className="d-flex gap-1">
                 <button
-                  className={`btn flex-fill fw-bold ${currentItem.plisseType === "VRSTA_1" ? "btn-primary" : "btn-outline-primary"}`}
+                  className={`btn flex-fill fw-bold ${currentItem.openingDirection === "LEFT" ? "btn-dark" : "btn-outline-dark"}`}
                   onClick={() =>
-                    setCurrentItem({ ...currentItem, plisseType: "VRSTA_1" })
+                    setCurrentItem({ ...currentItem, openingDirection: "LEFT" })
                   }
                 >
-                  Vrsta 1
+                  &larr; Levo
                 </button>
                 <button
-                  className={`btn flex-fill fw-bold ${currentItem.plisseType === "VRSTA_2" ? "btn-primary" : "btn-outline-primary"}`}
+                  className={`btn flex-fill fw-bold ${currentItem.openingDirection === "RIGHT" ? "btn-dark" : "btn-outline-dark"}`}
                   onClick={() =>
-                    setCurrentItem({ ...currentItem, plisseType: "VRSTA_2" })
+                    setCurrentItem({
+                      ...currentItem,
+                      openingDirection: "RIGHT",
+                    })
                   }
                 >
-                  Vrsta 2
+                  Desno &rarr;
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="row g-4 align-items-center mb-4">
-            <div className="col-md-6 border-end">
-              <div className="form-check mb-2 fs-5">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="isDoubleCheck"
-                  checked={currentItem.isDouble}
-                  onChange={(e) => {
-                    const isChecked = e.target.checked;
-                    setCurrentItem({
-                      ...currentItem,
-                      isDouble: isChecked,
-                      openingDirection: isChecked ? "CENTER" : "RIGHT",
-                    });
-                  }}
-                />
-                <label className="form-check-label" htmlFor="isDoubleCheck">
-                  Dvodelni Komarnik
-                </label>
-              </div>
-              <div className="form-check fs-5">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="hasThresholdCheck"
-                  checked={currentItem.hasThreshold}
-                  onChange={(e) =>
-                    setCurrentItem({
-                      ...currentItem,
-                      hasThreshold: e.target.checked,
-                    })
-                  }
-                />
-                <label className="form-check-label" htmlFor="hasThresholdCheck">
-                  Sa pragom
-                </label>
-              </div>
-            </div>
-
-            <div className="col-md-6">
-              {!currentItem.isDouble && (
-                <div>
-                  <p className="fw-medium mb-2">Smer Otvaranja</p>
-                  <div className="d-flex gap-2">
-                    <button
-                      className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "LEFT" ? "btn-dark" : "btn-outline-dark"}`}
-                      onClick={() =>
-                        setCurrentItem({
-                          ...currentItem,
-                          openingDirection: "LEFT",
-                        })
-                      }
-                    >
-                      &larr; Levo
-                    </button>
-                    <button
-                      className={`btn flex-fill fw-bold fs-4 ${currentItem.openingDirection === "RIGHT" ? "btn-dark" : "btn-outline-dark"}`}
-                      onClick={() =>
-                        setCurrentItem({
-                          ...currentItem,
-                          openingDirection: "RIGHT",
-                        })
-                      }
-                    >
-                      Desno &rarr;
-                    </button>
-                  </div>
-                </div>
-              )}
+          <div className="row g-3 mb-4">
+            <div className="col-12">
+              <label className="form-label fw-bold text-dark">
+                Napomena za ovu stavku (Opciono)
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-lg bg-light"
+                placeholder={
+                  currentItem.type === "SERVICE"
+                    ? "Npr. Zadrži staru mrežicu, pukao donji kanap..."
+                    : "Npr. Pazi na kosinu zida..."
+                }
+                value={currentItem.note}
+                onChange={(e) =>
+                  setCurrentItem({ ...currentItem, note: e.target.value })
+                }
+              />
             </div>
           </div>
 
           <button
             type="button"
-            className="btn btn-outline-primary btn-lg w-100 fw-bold"
+            className={`btn btn-lg w-100 fw-bold fs-5 d-flex justify-content-center align-items-center ${currentItem.type === "SERVICE" ? "btn-outline-warning text-dark" : "btn-outline-primary"}`}
             onClick={handleAddItem}
           >
-            ➕ DODAJ KOMARNIK U NALOG
+            <span className="fs-3 me-2" style={{ lineHeight: "1" }}>
+              +
+            </span>{" "}
+            DODAJ U LISTU
           </button>
         </div>
 
@@ -357,51 +475,54 @@ function AdminLayout() {
         {items.length > 0 && (
           <div className="card p-4 shadow-sm border-0 mb-4 rounded-4">
             <h5 className="text-success fw-bold mb-3">
-              3. DODATI KOMARNICI ({items.length})
+              3. DODATE STAVKE ZA ŠTAMPANJE ({items.length})
             </h5>
-            <div className="table-responsive mb-4">
-              <table className="table table-hover align-middle">
+            <div className="table-responsive mb-4 border rounded">
+              <table className="table table-hover align-middle mb-0">
                 <thead className="table-light">
                   <tr>
-                    <th>#</th>
-                    <th>Dimenzije (ŠxV)</th>
-                    <th>Vrsta</th>
-                    <th>Struktura</th>
+                    <th>Tip Posla</th>
+                    <th>Dimenzije</th>
+                    <th>Kom</th>
+                    <th>Vrsta / Šablon</th>
                     <th>Smer</th>
-                    <th>Ukloni</th>
+                    <th>Napomena</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="fw-bold">{idx + 1}</td>
-                      <td className="fs-5">
-                        {item.inputWidth} x {item.inputHeight} mm
+                    <tr
+                      key={idx}
+                      className={item.type === "SERVICE" ? "table-warning" : ""}
+                    >
+                      <td>
+                        <span
+                          className={`badge ${item.type === "SERVICE" ? "bg-warning text-dark" : "bg-primary"} fs-6`}
+                        >
+                          {item.type === "SERVICE" ? "SERVIS" : "NOVO"}
+                        </span>
+                      </td>
+                      <td className="fs-5 fw-bold">
+                        {item.widthW} x {item.heightH}
+                      </td>
+                      <td className="fw-bold fs-5">{item.quantity}</td>
+                      <td className="text-muted fw-bold">
+                        {selectedTemplateName(item.productTemplate?.id)}
                       </td>
                       <td>
-                        {item.plisseType === "VRSTA_1" ? "Vrsta 1" : "Vrsta 2"}
+                        {item.openingDirection === "LEFT" ? "Levo" : "Desno"}
                       </td>
-                      <td>
-                        {item.isDouble ? "Dvodelni" : "Jednodelni"}
-                        <br />
-                        <small className="text-muted">
-                          {item.hasThreshold ? "Sa pragom" : ""}
-                        </small>
+                      <td className="small fst-italic text-muted">
+                        {item.note}
                       </td>
-                      <td>
-                        {item.isDouble
-                          ? ""
-                          : item.openingDirection === "LEFT"
-                            ? "Levo"
-                            : "Desno"}
-                      </td>
-                      <td>
+                      <td className="text-end">
                         <button
                           type="button"
-                          className="btn btn-sm btn-danger"
+                          className="btn btn-sm btn-outline-danger fw-bold"
                           onClick={() => handleRemoveItem(idx)}
                         >
-                          ✖
+                          Obriši
                         </button>
                       </td>
                     </tr>
@@ -412,10 +533,10 @@ function AdminLayout() {
 
             <button
               type="button"
-              className="btn btn-success btn-lg w-100 fw-bold fs-4 shadow"
+              className="btn btn-success btn-lg w-100 fw-bold fs-4 shadow py-3"
               onClick={handleSubmitOrder}
             >
-              💾 SAČUVAJ KOMPLETAN NALOG
+              ZAVRŠI I POŠALJI U RADIONICU
             </button>
           </div>
         )}

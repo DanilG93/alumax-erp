@@ -10,8 +10,8 @@ import java.util.List;
 @Repository
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
 
-    @Query("SELECT DISTINCT w.customerDescription FROM WorkOrder w WHERE w.customerDescription IS NOT NULL AND w.customerDescription != ''")
-    List<String> findDistinctCustomerDescriptions();
+    @Query("SELECT DISTINCT w.customerName FROM WorkOrder w WHERE w.customerName IS NOT NULL AND w.customerName != ''")
+    List<String> findDistinctCustomerNames();
 
     @Query(value = "SELECT w.protocol_number FROM work_order w WHERE w.protocol_number REGEXP '^[0-9]+$' ORDER BY CAST(w.protocol_number AS UNSIGNED) DESC LIMIT 1", nativeQuery = true)
     String findMaxNumericProtocolNumber();
