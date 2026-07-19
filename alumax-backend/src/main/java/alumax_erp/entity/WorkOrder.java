@@ -1,5 +1,6 @@
 package alumax_erp.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,6 +34,7 @@ public class WorkOrder {
     @Column(name = "delivery_date")
     private LocalDate deliveryDate;
 
+    @JsonProperty("isUrgent")
     @Column(name = "is_urgent", nullable = false)
     private boolean isUrgent = false;
 
