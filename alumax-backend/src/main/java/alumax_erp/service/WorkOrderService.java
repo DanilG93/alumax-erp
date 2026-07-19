@@ -49,12 +49,15 @@ public class WorkOrderService {
             for (OrderItem item : workOrder.getItems()) {
                 item.setWorkOrder(workOrder);
                 item.setStatus(OrderStatus.NEW);
+
+                if (workOrder.isUrgent()) {
+                    item.setUrgent(true);
+                }
             }
         }
 
         return workOrderRepository.save(workOrder);
     }
-
 
     public List<OrderItem> getAllOrderItems() {
         return orderItemRepository.findAll();

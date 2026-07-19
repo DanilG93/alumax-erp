@@ -56,4 +56,7 @@ public class OrderItem {
 
     @Column(name = "worker_note", columnDefinition = "TEXT")
     private String workerNote;
+
+    @Column(name = "is_urgent", nullable = false)
+    private boolean urgent = false;
 }

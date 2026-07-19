@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { getWorkOrders } from "../api/api";
+import { getWorkOrders, toggleItemUrgency } from "../api/api";
 
 function DashboardLayout() {
   const [orders, setOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
     fetchOrders();
-    // Osvežavanje podataka svakih 30 sekundi
     const interval = setInterval(() => fetchOrders(), 30000);
     return () => clearInterval(interval);
   }, []);
@@ -19,6 +19,27 @@ function DashboardLayout() {
       setOrders(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Greška pri učitavanju naloga:", error);
+    }
+  };
+
+  // --- FUNKCIJA ZA TOGGLE HITNO NA KOMARNIKU ---
+  const handleToggleItemUrgency = async (itemId) => {
+    try {
+      await toggleItemUrgency(itemId);
+
+      // Osveži prikaz u modalu momentalno (da korisnik ne čeka)
+      setSelectedOrder((prev) => ({
+        ...prev,
+        items: prev.items.map((i) =>
+          i.id === itemId ? { ...i, urgent: !i.urgent } : i,
+        ),
+      }));
+
+      // Osveži bazu u pozadini
+      fetchOrders();
+    } catch (error) {
+      console.error("Greška pri promeni prioriteta:", error);
+      alert("Došlo je do greške pri promeni statusa.");
     }
   };
 
@@ -39,7 +60,6 @@ function DashboardLayout() {
     }
   });
 
-  // --- FUNKCIJA ZA PROGRES NALOGA ---
   const getOrderProgress = (items) => {
     if (!items || items.length === 0) return { percent: 0, text: "0/0" };
     const completed = items.filter((i) => i.status === "COMPLETED").length;
@@ -47,7 +67,31 @@ function DashboardLayout() {
     return { percent, text: `${completed}/${items.length}` };
   };
 
-  // --- FILTRIRANJE PRETRAGE ---
+  const getItemStatusBadge = (status) => {
+    switch (status) {
+      case "NEW":
+        return (
+          <span className="badge bg-secondary rounded-1 px-2 py-1">
+            ČEKA NA RAD
+          </span>
+        );
+      case "IN_PROGRESS":
+        return (
+          <span className="badge bg-warning text-dark rounded-1 px-2 py-1">
+            U RADU
+          </span>
+        );
+      case "COMPLETED":
+        return (
+          <span className="badge bg-success rounded-1 px-2 py-1">ZAVRŠENO</span>
+        );
+      default:
+        return (
+          <span className="badge bg-dark rounded-1 px-2 py-1">{status}</span>
+        );
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
@@ -61,7 +105,7 @@ function DashboardLayout() {
     if (activeFilter === "DELIVERY") matchesFilter = order.requiresDelivery;
     if (activeFilter === "SERVICE")
       matchesFilter =
-        order.items && order.items.some((i) => i.type === "SERVICE");
+        order.items && order.items.some((i) => i.jobType === "SERVICE");
 
     return matchesSearch && matchesFilter;
   });
@@ -115,10 +159,9 @@ function DashboardLayout() {
       </div>
 
       {/* GLAVNI SADRŽAJ */}
-      <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
+      <div className="flex-grow-1 p-4 p-md-5 overflow-auto position-relative">
         <h2 className="fw-bold text-dark mb-4">Pregled Proizvodnje</h2>
 
-        {/* KPI KARTICE (Statistika) */}
         <div className="row g-4 mb-5">
           <div className="col-md-3">
             <div className="card shadow-sm border-0 border-start border-primary border-4 rounded-2 h-100 p-3">
@@ -168,7 +211,6 @@ function DashboardLayout() {
           </div>
         </div>
 
-        {/* PRETRAGA I FILTERI */}
         <div className="card shadow-sm border-0 rounded-2 p-3 mb-4 bg-white">
           <div className="row align-items-center g-3">
             <div className="col-md-4">
@@ -211,7 +253,6 @@ function DashboardLayout() {
           </div>
         </div>
 
-        {/* TABELA RADNIH NALOGA */}
         <div className="card shadow-sm border-0 rounded-2 bg-white">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -235,6 +276,9 @@ function DashboardLayout() {
                       <tr
                         key={order.id}
                         className={order.isUrgent ? "table-danger" : ""}
+                        onClick={() => setSelectedOrder(order)}
+                        style={{ cursor: "pointer" }}
+                        title="Klikni za detalje naloga"
                       >
                         <td className="px-4 fw-bold">
                           {order.protocolNumber || "N/A"}
@@ -256,7 +300,9 @@ function DashboardLayout() {
                               </span>
                             )}
                             {order.items &&
-                              order.items.some((i) => i.type === "SERVICE") && (
+                              order.items.some(
+                                (i) => i.jobType === "SERVICE",
+                              ) && (
                                 <span className="badge bg-warning text-dark rounded-1">
                                   SADRŽI SERVIS
                                 </span>
@@ -307,6 +353,149 @@ function DashboardLayout() {
           </div>
         </div>
       </div>
+
+      {/* MODAL ZA DETALJE NALOGA */}
+      {selectedOrder && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050 }}
+        >
+          <div
+            className="card shadow-lg border-0 rounded-0"
+            style={{
+              width: "95%",
+              maxWidth: "1100px",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div
+              className={`card-header d-flex justify-content-between align-items-center p-4 border-0 ${selectedOrder.isUrgent ? "bg-danger text-white" : "bg-dark text-white"}`}
+            >
+              <div>
+                <h4 className="mb-0 fw-bold">
+                  Nalog: {selectedOrder.protocolNumber || "N/A"}
+                </h4>
+                <span className="opacity-75">{selectedOrder.customerName}</span>
+              </div>
+              <div className="text-end">
+                <div className="fw-bold mb-1">
+                  Rok: {selectedOrder.deliveryDate || "Nije definisan"}
+                </div>
+                {selectedOrder.requiresDelivery && (
+                  <span className="badge bg-primary rounded-1">
+                    Za isporuku
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div
+              className="card-body p-4 overflow-auto"
+              style={{ backgroundColor: "#f8f9fa" }}
+            >
+              <h6 className="fw-bold text-muted text-uppercase mb-3">
+                Sadržaj naloga ({selectedOrder.items?.length || 0} stavki)
+              </h6>
+
+              <div className="table-responsive border rounded bg-white">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="py-3 px-3">Tip</th>
+                      <th className="py-3">Dimenzije</th>
+                      <th className="py-3 text-center">Komada</th>
+                      <th className="py-3">Vrsta / Šablon</th>
+                      <th className="py-3 text-center">Smer</th>
+                      <th className="py-3 text-center">Prioritet (Hitno)</th>
+                      <th className="py-3">Napomena</th>
+                      <th className="py-3 text-end px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item, idx) => (
+                        <tr
+                          key={item.id || idx}
+                          className={item.urgent ? "table-danger" : ""}
+                        >
+                          <td className="px-3">
+                            {item.jobType === "SERVICE" ? (
+                              <span className="badge bg-warning text-dark rounded-1">
+                                SERVIS
+                              </span>
+                            ) : (
+                              <span className="badge bg-primary rounded-1">
+                                NOVO
+                              </span>
+                            )}
+                          </td>
+                          <td className="fw-bold">
+                            {item.widthW} x {item.heightH}
+                          </td>
+                          <td className="fw-bold text-center">
+                            {item.quantity}
+                          </td>
+                          <td className="text-muted fw-bold">
+                            {item.productTemplate
+                              ? item.productTemplate.name
+                              : "Bez šablona"}
+                          </td>
+                          <td className="text-center">
+                            {item.openingDirection === "LEFT"
+                              ? "Levo"
+                              : "Desno"}
+                          </td>
+
+                          {/* NOVO: TOGGLE ZA HITNO */}
+                          <td className="text-center">
+                            <div className="form-check form-switch d-inline-flex justify-content-center w-100">
+                              <input
+                                className={`form-check-input mt-0 fs-5 ${item.urgent ? "bg-danger border-danger" : ""}`}
+                                type="checkbox"
+                                role="switch"
+                                checked={item.urgent || false}
+                                onChange={() =>
+                                  handleToggleItemUrgency(item.id)
+                                }
+                                style={{ cursor: "pointer" }}
+                                title="Označi komarnik kao hitan"
+                              />
+                            </div>
+                          </td>
+
+                          <td className="small fst-italic text-muted">
+                            {item.note || "-"}
+                          </td>
+                          <td className="text-end px-3">
+                            {getItemStatusBadge(item.status)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="8" className="text-center py-4 text-muted">
+                          Nema definisanih stavki.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card-footer bg-white p-3 text-end border-top">
+              <button
+                className="btn btn-outline-dark fw-bold px-4 py-2 rounded-1"
+                onClick={() => setSelectedOrder(null)}
+              >
+                ZATVORI PREGLED
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
