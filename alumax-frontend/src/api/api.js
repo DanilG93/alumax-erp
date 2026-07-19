@@ -37,3 +37,7 @@ export const getServiceActions = () => api.get("/service-actions");
 export const createServiceAction = (action) =>
   api.post("/service-actions", action);
 export const deleteServiceAction = (id) => api.delete(`/service-actions/${id}`);
+
+// Upravljanje pojedinačnim stavkama (Komarnicima)
+export const toggleItemUrgency = (itemId) =>
+  api.patch(`/order-items/${itemId}/toggle-urgent`);
