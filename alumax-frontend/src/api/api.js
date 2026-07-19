@@ -31,3 +31,9 @@ export const updateOrderItemStatus = (itemId, newStatus) => {
 
 export const updateTemplate = (id, data) =>
   axios.put(`${API_BASE_URL}/templates/${id}`, data);
+
+// Katalog Servisa
+export const getServiceActions = () => api.get("/service-actions");
+export const createServiceAction = (action) =>
+  api.post("/service-actions", action);
+export const deleteServiceAction = (id) => api.delete(`/service-actions/${id}`);

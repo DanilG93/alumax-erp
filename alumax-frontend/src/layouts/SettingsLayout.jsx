@@ -4,6 +4,9 @@ import {
   createTemplate,
   deleteTemplate,
   updateTemplate,
+  getServiceActions,
+  createServiceAction,
+  deleteServiceAction,
 } from "../api/api";
 
 function SettingsLayout() {
@@ -11,6 +14,10 @@ function SettingsLayout() {
   const [templateName, setTemplateName] = useState("");
   const [rules, setRules] = useState([]);
   const [notes, setNotes] = useState([]);
+
+  // NOVO: Stanja za Katalog Servisa
+  const [serviceActions, setServiceActions] = useState([]);
+  const [newActionName, setNewActionName] = useState("");
 
   const [editingTemplateId, setEditingTemplateId] = useState(null);
   const [editingRuleIndex, setEditingRuleIndex] = useState(null);
@@ -29,6 +36,7 @@ function SettingsLayout() {
 
   useEffect(() => {
     fetchTemplates();
+    fetchServiceActions();
   }, []);
 
   const fetchTemplates = async () => {
@@ -37,6 +45,36 @@ function SettingsLayout() {
       setTemplates(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Greška pri učitavanju šablona:", error);
+    }
+  };
+
+  const fetchServiceActions = async () => {
+    try {
+      const response = await getServiceActions();
+      setServiceActions(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("Greška pri učitavanju kataloga servisa:", error);
+    }
+  };
+
+  const handleAddServiceAction = async () => {
+    if (!newActionName.trim()) return;
+    try {
+      await createServiceAction({ name: newActionName.trim() });
+      setNewActionName("");
+      fetchServiceActions();
+    } catch (error) {
+      console.error("Greška pri dodavanju usluge:", error);
+      alert("Nije moguće dodati uslugu. Možda već postoji?");
+    }
+  };
+
+  const handleDeleteServiceAction = async (id) => {
+    try {
+      await deleteServiceAction(id);
+      fetchServiceActions();
+    } catch (error) {
+      console.error("Greška pri brisanju usluge:", error);
     }
   };
 
@@ -227,7 +265,7 @@ function SettingsLayout() {
 
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="fw-bold text-dark">Podešavanja Šablona</h2>
+          <h2 className="fw-bold text-dark">Podešavanja Sistema</h2>
           {editingTemplateId && (
             <span className="badge bg-warning text-dark fs-5 shadow-sm">
               REŽIM IZMENE AKTIVAN
@@ -236,6 +274,7 @@ function SettingsLayout() {
         </div>
 
         <div className="row g-4">
+          {/* LEVA STRANA: KREIRANJE ŠABLONA */}
           <div className="col-xl-7">
             <div
               className={`card p-4 shadow-sm border-0 rounded-4 ${editingTemplateId ? "border border-warning border-3" : ""}`}
@@ -255,7 +294,6 @@ function SettingsLayout() {
                 className={`p-3 rounded-3 mb-4 border ${editingRuleIndex !== null ? "bg-warning bg-opacity-10 border-warning" : "bg-light"}`}
               >
                 <h6 className="fw-bold mb-3">Pravilo sečenja</h6>
-
                 <div className="row g-2 mb-2">
                   <div className="col-md-4">
                     <label className="form-label small fw-bold text-muted mb-1">
@@ -530,7 +568,61 @@ function SettingsLayout() {
             </div>
           </div>
 
+          {/* DESNA STRANA: LISTA ŠABLONA I NOVI KATALOG SERVISA */}
           <div className="col-xl-5">
+            {/* KATALOG SERVISNIH USLUGA */}
+            <div className="card p-4 shadow-sm border-warning border-top border-4 rounded-4 mb-4">
+              <h5 className="fw-bold mb-3 text-warning text-dark">
+                Katalog Servisa (za Kiosk)
+              </h5>
+              <p className="small text-muted mb-3">
+                Dodaj šta sve majstori mogu da čekiraju da su uradili (npr.
+                Zamena mrežice).
+              </p>
+
+              <div className="d-flex gap-2 mb-3">
+                <input
+                  type="text"
+                  className="form-control border-warning"
+                  placeholder="Nova stavka..."
+                  value={newActionName}
+                  onChange={(e) => setNewActionName(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleAddServiceAction()
+                  }
+                />
+                <button
+                  className="btn btn-warning fw-bold text-dark text-nowrap"
+                  onClick={handleAddServiceAction}
+                >
+                  Dodaj
+                </button>
+              </div>
+
+              <ul className="list-group">
+                {serviceActions.map((action) => (
+                  <li
+                    key={action.id}
+                    className="list-group-item d-flex justify-content-between align-items-center py-2"
+                  >
+                    <span className="fw-medium">{action.name}</span>
+                    <button
+                      className="btn btn-sm btn-outline-danger fw-bold"
+                      onClick={() => handleDeleteServiceAction(action.id)}
+                    >
+                      Obriši
+                    </button>
+                  </li>
+                ))}
+                {serviceActions.length === 0 && (
+                  <li className="list-group-item text-muted text-center py-3">
+                    Katalog je prazan
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {/* LISTA SAČUVANIH ŠABLONA */}
             <div className="card p-4 shadow-sm border-0 rounded-4">
               <h5 className="fw-bold mb-4">SAČUVANI ŠABLONI</h5>
               {templates.map((t) => (
