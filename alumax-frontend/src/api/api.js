@@ -51,3 +51,7 @@ export const changePassword = (id, newPassword) =>
   api.put(`/users/${id}/password`, newPassword, {
     headers: { "Content-Type": "text/plain" },
   });
+
+// Izračunavanje krojne liste
+export const getItemCalculations = (itemId) =>
+  api.get(`/work-orders/items/${itemId}/calculations`);
