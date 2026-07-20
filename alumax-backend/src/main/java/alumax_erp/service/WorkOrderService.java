@@ -14,10 +14,14 @@ public class WorkOrderService {
 
     private final WorkOrderRepository workOrderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final FormulaEngineService formulaEngineService;
 
-    public WorkOrderService(WorkOrderRepository workOrderRepository, OrderItemRepository orderItemRepository) {
+    public WorkOrderService(WorkOrderRepository workOrderRepository,
+                            OrderItemRepository orderItemRepository,
+                            FormulaEngineService formulaEngineService) {
         this.workOrderRepository = workOrderRepository;
         this.orderItemRepository = orderItemRepository;
+        this.formulaEngineService = formulaEngineService;
     }
 
     public List<WorkOrder> getAllWorkOrders() {
@@ -92,5 +96,20 @@ public class WorkOrderService {
             workOrder.setStatus(OrderStatus.COMPLETED);
             workOrderRepository.save(workOrder);
         }
+    }
+
+    public List<FormulaEngineService.CalculatedItem> calculateItemDimensions(Long itemId) {
+        OrderItem item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Stavka nije pronađena!"));
+
+        if (item.getProductTemplate() == null || item.getProductTemplate().getCuttingRules() == null) {
+            return List.of();
+        }
+
+        return formulaEngineService.calculateTemplate(
+                item.getProductTemplate().getCuttingRules(),
+                item.getWidthW(),
+                item.getHeightH()
+        );
     }
 }

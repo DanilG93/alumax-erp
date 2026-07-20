@@ -3,6 +3,7 @@ package alumax_erp.controller;
 import alumax_erp.entity.OrderItem;
 import alumax_erp.entity.OrderStatus;
 import alumax_erp.entity.WorkOrder;
+import alumax_erp.service.FormulaEngineService;
 import alumax_erp.service.WorkOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -44,5 +45,10 @@ public class WorkOrderController {
     @PutMapping("/items/{itemId}/status")
     public OrderItem updateItemStatus(@PathVariable Long itemId, @RequestParam OrderStatus status) {
         return service.updateOrderItemStatus(itemId, status);
+    }
+
+    @GetMapping("/items/{itemId}/calculations")
+    public ResponseEntity<List<FormulaEngineService.CalculatedItem>> getItemCalculations(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.calculateItemDimensions(itemId));
     }
 }
