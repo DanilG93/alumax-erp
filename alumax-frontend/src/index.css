@@ -1,0 +1,30 @@
+/* alumax-frontend/src/index.css */
+
+@media print {
+  /* Sakrij sve što nema veze sa štampanjem (meniji, pozadine...) */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Prikaži samo element koji ima id="print-area" i sve unutar njega */
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  /* Fiksiraj zonu za štampu na vrh papira */
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: white;
+  }
+
+  /* Sakrij dugmiće unutar samog prozora za štampu */
+  .no-print {
+    display: none !important;
+  }
+}
