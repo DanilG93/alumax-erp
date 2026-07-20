@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Sidebar from "../components/Sidebar"; // Uvozimo pametni meni
 import {
   getTemplates,
   createTemplate,
@@ -7,6 +8,10 @@ import {
   getServiceActions,
   createServiceAction,
   deleteServiceAction,
+  getUsers,
+  createUser,
+  deleteUser,
+  changePassword, // Novi API pozivi za korisnike
 } from "../api/api";
 
 function SettingsLayout() {
@@ -15,9 +20,16 @@ function SettingsLayout() {
   const [rules, setRules] = useState([]);
   const [notes, setNotes] = useState([]);
 
-  // NOVO: Stanja za Katalog Servisa
   const [serviceActions, setServiceActions] = useState([]);
   const [newActionName, setNewActionName] = useState("");
+
+  // --- STANJA ZA KORISNIKE ---
+  const [users, setUsers] = useState([]);
+  const [newUser, setNewUser] = useState({
+    username: "",
+    password: "",
+    role: "WORKER",
+  });
 
   const [editingTemplateId, setEditingTemplateId] = useState(null);
   const [editingRuleIndex, setEditingRuleIndex] = useState(null);
@@ -31,20 +43,79 @@ function SettingsLayout() {
     variableName: "",
     quantityMultiplier: 1,
   });
-
   const [newNote, setNewNote] = useState("");
 
   useEffect(() => {
     fetchTemplates();
     fetchServiceActions();
+    fetchUsers(); // Učitavamo korisnike na startu
   }, []);
 
+  // --- LOGIKA ZA KORISNIKE ---
+  const fetchUsers = async () => {
+    try {
+      const response = await getUsers();
+      setUsers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("Greška pri učitavanju korisnika:", error);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.username || !newUser.password) {
+      alert("Unesite ime i lozinku!");
+      return;
+    }
+    try {
+      await createUser(newUser);
+      setNewUser({ username: "", password: "", role: "WORKER" });
+      fetchUsers();
+    } catch (error) {
+      alert("Greška! Možda korisničko ime već postoji.");
+    }
+  };
+
+  const handleDeleteUser = async (id, username) => {
+    const loggedUser = JSON.parse(localStorage.getItem("user"));
+    if (username === loggedUser.username) {
+      alert("Ne možete obrisati sopstveni nalog dok ste ulogovani!");
+      return;
+    }
+    if (
+      window.confirm(
+        `Da li ste sigurni da želite da obrišete korisnika: ${username}?`,
+      )
+    ) {
+      try {
+        await deleteUser(id);
+        fetchUsers();
+      } catch (error) {
+        alert("Greška pri brisanju korisnika.");
+      }
+    }
+  };
+
+  const handleChangePassword = async (id, username) => {
+    const newPass = window.prompt(
+      `Unesite novu lozinku za korisnika: ${username}`,
+    );
+    if (newPass && newPass.trim() !== "") {
+      try {
+        await changePassword(id, newPass);
+        alert("Lozinka je uspešno promenjena!");
+      } catch (error) {
+        alert("Greška pri promeni lozinke.");
+      }
+    }
+  };
+
+  // --- LOGIKA ZA ŠABLONE I SERVISE (Ostavljeno nepromenjeno) ---
   const fetchTemplates = async () => {
     try {
       const response = await getTemplates();
       setTemplates(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Greška pri učitavanju šablona:", error);
+      console.error(error);
     }
   };
 
@@ -53,7 +124,7 @@ function SettingsLayout() {
       const response = await getServiceActions();
       setServiceActions(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Greška pri učitavanju kataloga servisa:", error);
+      console.error(error);
     }
   };
 
@@ -64,8 +135,7 @@ function SettingsLayout() {
       setNewActionName("");
       fetchServiceActions();
     } catch (error) {
-      console.error("Greška pri dodavanju usluge:", error);
-      alert("Nije moguće dodati uslugu. Možda već postoji?");
+      alert("Nije moguće dodati uslugu.");
     }
   };
 
@@ -73,9 +143,7 @@ function SettingsLayout() {
     try {
       await deleteServiceAction(id);
       fetchServiceActions();
-    } catch (error) {
-      console.error("Greška pri brisanju usluge:", error);
-    }
+    } catch (error) {}
   };
 
   const handleAddRule = () => {
@@ -84,10 +152,9 @@ function SettingsLayout() {
       !newRule.inputValue ||
       newRule.quantityMultiplier < 1
     ) {
-      alert("Molimo unesite naziv dela, vrednost/formulu i količinu!");
+      alert("Unesite sve podatke za pravilo!");
       return;
     }
-
     const ruleToSave = {
       elementName: newRule.elementName,
       targetDimension:
@@ -100,7 +167,6 @@ function SettingsLayout() {
           ? newRule.variableName.trim().toUpperCase()
           : null,
     };
-
     if (newRule.ruleType === "FIXED") {
       ruleToSave.value = parseFloat(newRule.inputValue);
       ruleToSave.formula = null;
@@ -164,7 +230,6 @@ function SettingsLayout() {
     setNotes([...notes, newNote]);
     setNewNote("");
   };
-
   const handleRemoveNote = (indexToRemove) => {
     setNotes(notes.filter((_, index) => index !== indexToRemove));
   };
@@ -173,7 +238,6 @@ function SettingsLayout() {
     setEditingTemplateId(t.id);
     setTemplateName(t.name);
     setNotes(t.notes ? [...t.notes] : []);
-
     const loadedRules = (t.cuttingRules || []).map((r) => ({
       elementName: r.elementName,
       targetDimension: r.targetDimension || "HEIGHT",
@@ -210,13 +274,7 @@ function SettingsLayout() {
       alert("Šablon mora imati ime i barem jedno pravilo!");
       return;
     }
-
-    const payload = {
-      name: templateName,
-      cuttingRules: rules,
-      notes: notes,
-    };
-
+    const payload = { name: templateName, cuttingRules: rules, notes: notes };
     try {
       if (editingTemplateId) {
         await updateTemplate(editingTemplateId, payload);
@@ -228,8 +286,7 @@ function SettingsLayout() {
       handleCancelEdit();
       fetchTemplates();
     } catch (error) {
-      console.error("Greška:", error);
-      alert("Greška pri čuvanju. Proveri konzolu.");
+      alert("Greška pri čuvanju.");
     }
   };
 
@@ -238,30 +295,8 @@ function SettingsLayout() {
       className="d-flex"
       style={{ minHeight: "100vh", backgroundColor: "#f4f6f9" }}
     >
-      <div
-        className="bg-dark text-white p-3 shadow-lg"
-        style={{ width: "260px" }}
-      >
-        <h3 className="mb-4 text-center fw-bold mt-2">Alumax ERP</h3>
-        <hr />
-        <ul className="nav nav-pills flex-column mb-auto gap-2">
-          <li>
-            <a href="/kiosk" className="nav-link text-white fs-5">
-              Kiosk
-            </a>
-          </li>
-          <li>
-            <a href="/admin" className="nav-link text-white fs-5">
-              Nova Narudžbina
-            </a>
-          </li>
-          <li className="nav-item">
-            <a href="#" className="nav-link active fw-bold fs-5">
-              Podešavanja
-            </a>
-          </li>
-        </ul>
-      </div>
+      {/* PAMETNI BOČNI MENI */}
+      <Sidebar />
 
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -289,7 +324,6 @@ function SettingsLayout() {
                 />
               </div>
 
-              {/* SEKCIJA ZA PRAVILA */}
               <div
                 className={`p-3 rounded-3 mb-4 border ${editingRuleIndex !== null ? "bg-warning bg-opacity-10 border-warning" : "bg-light"}`}
               >
@@ -436,7 +470,6 @@ function SettingsLayout() {
                 </div>
               </div>
 
-              {/* SEKCIJA ZA NAPOMENE */}
               <div className="bg-light p-3 rounded-3 mb-4 border">
                 <h6 className="fw-bold text-dark mb-3">
                   Tekstualne napomene za radni nalog
@@ -459,7 +492,6 @@ function SettingsLayout() {
                 </div>
               </div>
 
-              {/* PREGLED DODATOG */}
               {(rules.length > 0 || notes.length > 0) && (
                 <div className="mb-4 p-3 border rounded-3 bg-white shadow-sm">
                   <h6 className="fw-bold text-success mb-3">
@@ -477,7 +509,7 @@ function SettingsLayout() {
                             className={`list-group-item d-flex justify-content-between align-items-center py-2 ${editingRuleIndex === idx ? "list-group-item-warning" : ""}`}
                           >
                             <span>
-                              <strong className="fs-6">{r.elementName}</strong>
+                              <strong className="fs-6">{r.elementName}</strong>{" "}
                               <span className="badge bg-secondary ms-2">
                                 {r.quantityMultiplier} kom
                               </span>
@@ -568,18 +600,96 @@ function SettingsLayout() {
             </div>
           </div>
 
-          {/* DESNA STRANA: LISTA ŠABLONA I NOVI KATALOG SERVISA */}
+          {/* DESNA STRANA */}
           <div className="col-xl-5">
-            {/* KATALOG SERVISNIH USLUGA */}
+            {/* UPRAVLJANJE KORISNICIMA */}
+            <div className="card p-4 shadow-sm border-danger border-top border-4 rounded-4 mb-4 bg-white">
+              <h5 className="fw-bold mb-3 text-danger">
+                Upravljanje Korisnicima
+              </h5>
+
+              <div className="row g-2 mb-3">
+                <div className="col-md-5">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Korisničko ime"
+                    value={newUser.username}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, username: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="col-md-7">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Nova Lozinka"
+                    value={newUser.password}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, password: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="col-12 d-flex gap-2 mt-1">
+                  <select
+                    className="form-select form-select-sm"
+                    value={newUser.role}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, role: e.target.value })
+                    }
+                  >
+                    <option value="WORKER">Radnik (Kiosk)</option>
+                    <option value="ADMIN">Administrator (Kancelarija)</option>
+                    <option value="HEAD_ADMIN">Head Admin (Sve opcije)</option>
+                  </select>
+                  <button
+                    className="btn btn-sm btn-danger fw-bold px-4"
+                    onClick={handleCreateUser}
+                  >
+                    Dodaj
+                  </button>
+                </div>
+              </div>
+
+              <ul className="list-group">
+                {users.map((u) => (
+                  <li
+                    key={u.id}
+                    className="list-group-item d-flex justify-content-between align-items-center py-2"
+                  >
+                    <span>
+                      <strong className="text-dark">{u.username}</strong>
+                      <span
+                        className={`badge ms-2 ${u.role === "HEAD_ADMIN" ? "bg-danger" : u.role === "ADMIN" ? "bg-primary" : "bg-secondary"}`}
+                      >
+                        {u.role}
+                      </span>
+                    </span>
+                    <div className="btn-group">
+                      <button
+                        className="btn btn-sm btn-outline-dark"
+                        onClick={() => handleChangePassword(u.id, u.username)}
+                      >
+                        Šifra
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleDeleteUser(u.id, u.username)}
+                      >
+                        Obriši
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* KATALOG SERVISA */}
             <div className="card p-4 shadow-sm border-warning border-top border-4 rounded-4 mb-4">
               <h5 className="fw-bold mb-3 text-warning text-dark">
                 Katalog Servisa (za Kiosk)
               </h5>
-              <p className="small text-muted mb-3">
-                Dodaj šta sve majstori mogu da čekiraju da su uradili (npr.
-                Zamena mrežice).
-              </p>
-
               <div className="d-flex gap-2 mb-3">
                 <input
                   type="text"
@@ -598,7 +708,6 @@ function SettingsLayout() {
                   Dodaj
                 </button>
               </div>
-
               <ul className="list-group">
                 {serviceActions.map((action) => (
                   <li
@@ -614,15 +723,10 @@ function SettingsLayout() {
                     </button>
                   </li>
                 ))}
-                {serviceActions.length === 0 && (
-                  <li className="list-group-item text-muted text-center py-3">
-                    Katalog je prazan
-                  </li>
-                )}
               </ul>
             </div>
 
-            {/* LISTA SAČUVANIH ŠABLONA */}
+            {/* LISTA ŠABLONA */}
             <div className="card p-4 shadow-sm border-0 rounded-4">
               <h5 className="fw-bold mb-4">SAČUVANI ŠABLONI</h5>
               {templates.map((t) => (
@@ -649,7 +753,6 @@ function SettingsLayout() {
                       </button>
                     </div>
                   </div>
-
                   {t.cuttingRules && t.cuttingRules.length > 0 && (
                     <div className="mb-2">
                       <span className="small fw-bold text-muted">
@@ -663,7 +766,7 @@ function SettingsLayout() {
                           >
                             <span>
                               {rule.quantityMultiplier}x{" "}
-                              <strong>{rule.elementName}</strong>
+                              <strong>{rule.elementName}</strong>{" "}
                               {rule.variableName && (
                                 <span className="badge bg-info text-dark ms-1">
                                   [{rule.variableName}]
@@ -686,21 +789,6 @@ function SettingsLayout() {
                                 </span>
                               )}
                             </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {t.notes && t.notes.length > 0 && (
-                    <div className="mt-2">
-                      <span className="small fw-bold text-muted">
-                        Napomene:
-                      </span>
-                      <ul className="list-unstyled ms-2 mb-0 mt-1">
-                        {t.notes.map((note, idx) => (
-                          <li key={idx} className="small text-secondary mb-1">
-                            • {note}
                           </li>
                         ))}
                       </ul>

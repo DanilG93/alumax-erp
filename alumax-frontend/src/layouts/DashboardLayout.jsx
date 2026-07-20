@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Sidebar from "../components/Sidebar";
 import { getWorkOrders, toggleItemUrgency } from "../api/api";
 
 function DashboardLayout() {
@@ -116,48 +117,7 @@ function DashboardLayout() {
       style={{ minHeight: "100vh", backgroundColor: "#f4f6f9" }}
     >
       {/* BOČNI MENI */}
-      <div
-        className="bg-dark text-white p-3 shadow-sm"
-        style={{ width: "260px" }}
-      >
-        <h3 className="mb-4 text-center fw-bold mt-2">Alumax ERP</h3>
-        <hr className="text-secondary" />
-        <ul className="nav nav-pills flex-column mb-auto gap-2">
-          <li className="nav-item">
-            <a
-              href="/dashboard"
-              className="nav-link active fw-bold fs-5 rounded-1"
-            >
-              Komandni Centar
-            </a>
-          </li>
-          <li>
-            <a
-              href="/admin"
-              className="nav-link text-white fs-5 rounded-1 opacity-75"
-            >
-              Nova Narudžbina
-            </a>
-          </li>
-          <li>
-            <a
-              href="/kiosk"
-              className="nav-link text-white fs-5 rounded-1 opacity-75"
-            >
-              Radionica (Kiosk)
-            </a>
-          </li>
-          <li>
-            <a
-              href="/settings"
-              className="nav-link text-white fs-5 rounded-1 opacity-75"
-            >
-              Podešavanja
-            </a>
-          </li>
-        </ul>
-      </div>
-
+      <Sidebar />
       {/* GLAVNI SADRŽAJ */}
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto position-relative">
         <h2 className="fw-bold text-dark mb-4">Pregled Proizvodnje</h2>

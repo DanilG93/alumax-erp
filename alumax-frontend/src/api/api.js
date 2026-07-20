@@ -41,3 +41,13 @@ export const deleteServiceAction = (id) => api.delete(`/service-actions/${id}`);
 // Upravljanje pojedinačnim stavkama (Komarnicima)
 export const toggleItemUrgency = (itemId) =>
   api.patch(`/order-items/${itemId}/toggle-urgent`);
+
+// Upravljanje Korisnicima
+export const loginUser = (credentials) => api.post("/users/login", credentials);
+export const getUsers = () => api.get("/users");
+export const createUser = (user) => api.post("/users", user);
+export const deleteUser = (id) => api.delete(`/users/${id}`);
+export const changePassword = (id, newPassword) =>
+  api.put(`/users/${id}/password`, newPassword, {
+    headers: { "Content-Type": "text/plain" },
+  });
