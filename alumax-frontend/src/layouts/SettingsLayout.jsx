@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar"; // Uvozimo pametni meni
+import Sidebar from "../components/Sidebar";
 import {
   getTemplates,
   createTemplate,
@@ -11,7 +11,7 @@ import {
   getUsers,
   createUser,
   deleteUser,
-  changePassword, // Novi API pozivi za korisnike
+  changePassword,
 } from "../api/api";
 
 function SettingsLayout() {
@@ -23,7 +23,6 @@ function SettingsLayout() {
   const [serviceActions, setServiceActions] = useState([]);
   const [newActionName, setNewActionName] = useState("");
 
-  // --- STANJA ZA KORISNIKE ---
   const [users, setUsers] = useState([]);
   const [newUser, setNewUser] = useState({
     username: "",
@@ -48,10 +47,9 @@ function SettingsLayout() {
   useEffect(() => {
     fetchTemplates();
     fetchServiceActions();
-    fetchUsers(); // Učitavamo korisnike na startu
+    fetchUsers();
   }, []);
 
-  // --- LOGIKA ZA KORISNIKE ---
   const fetchUsers = async () => {
     try {
       const response = await getUsers();
@@ -109,7 +107,6 @@ function SettingsLayout() {
     }
   };
 
-  // --- LOGIKA ZA ŠABLONE I SERVISE (Ostavljeno nepromenjeno) ---
   const fetchTemplates = async () => {
     try {
       const response = await getTemplates();
@@ -155,6 +152,7 @@ function SettingsLayout() {
       alert("Unesite sve podatke za pravilo!");
       return;
     }
+
     const ruleToSave = {
       elementName: newRule.elementName,
       targetDimension:
@@ -167,6 +165,12 @@ function SettingsLayout() {
           ? newRule.variableName.trim().toUpperCase()
           : null,
     };
+
+    // Zadržavanje ID-ja starog pravila ako se radi izmena postojeće stavke
+    if (editingRuleIndex !== null && rules[editingRuleIndex].id) {
+      ruleToSave.id = rules[editingRuleIndex].id;
+    }
+
     if (newRule.ruleType === "FIXED") {
       ruleToSave.value = parseFloat(newRule.inputValue);
       ruleToSave.formula = null;
@@ -230,6 +234,7 @@ function SettingsLayout() {
     setNotes([...notes, newNote]);
     setNewNote("");
   };
+
   const handleRemoveNote = (indexToRemove) => {
     setNotes(notes.filter((_, index) => index !== indexToRemove));
   };
@@ -238,15 +243,20 @@ function SettingsLayout() {
     setEditingTemplateId(t.id);
     setTemplateName(t.name);
     setNotes(t.notes ? [...t.notes] : []);
+
+    // ISPRAVKA: Pravilno mapiranje i čuvanje pravih vrednosti iz baze
     const loadedRules = (t.cuttingRules || []).map((r) => ({
+      id: r.id,
       elementName: r.elementName,
       targetDimension: r.targetDimension || "HEIGHT",
       operation: r.operation || "SUBTRACT",
       ruleType: r.ruleType || "FIXED",
-      inputValue: r.ruleType === "FIXED" ? r.value : r.formula,
+      value: r.value,
+      formula: r.formula,
       variableName: r.variableName || "",
       quantityMultiplier: r.quantityMultiplier,
     }));
+
     setRules(loadedRules);
     setEditingRuleIndex(null);
     window.scrollTo(0, 0);
@@ -295,7 +305,6 @@ function SettingsLayout() {
       className="d-flex"
       style={{ minHeight: "100vh", backgroundColor: "#f4f6f9" }}
     >
-      {/* PAMETNI BOČNI MENI */}
       <Sidebar />
 
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
@@ -309,7 +318,6 @@ function SettingsLayout() {
         </div>
 
         <div className="row g-4">
-          {/* LEVA STRANA: KREIRANJE ŠABLONA */}
           <div className="col-xl-7">
             <div
               className={`card p-4 shadow-sm border-0 rounded-4 ${editingTemplateId ? "border border-warning border-3" : ""}`}
@@ -600,14 +608,11 @@ function SettingsLayout() {
             </div>
           </div>
 
-          {/* DESNA STRANA */}
           <div className="col-xl-5">
-            {/* UPRAVLJANJE KORISNICIMA */}
             <div className="card p-4 shadow-sm border-danger border-top border-4 rounded-4 mb-4 bg-white">
               <h5 className="fw-bold mb-3 text-danger">
                 Upravljanje Korisnicima
               </h5>
-
               <div className="row g-2 mb-3">
                 <div className="col-md-5">
                   <input
@@ -685,7 +690,6 @@ function SettingsLayout() {
               </ul>
             </div>
 
-            {/* KATALOG SERVISA */}
             <div className="card p-4 shadow-sm border-warning border-top border-4 rounded-4 mb-4">
               <h5 className="fw-bold mb-3 text-warning text-dark">
                 Katalog Servisa (za Kiosk)
@@ -726,7 +730,6 @@ function SettingsLayout() {
               </ul>
             </div>
 
-            {/* LISTA ŠABLONA */}
             <div className="card p-4 shadow-sm border-0 rounded-4">
               <h5 className="fw-bold mb-4">SAČUVANI ŠABLONI</h5>
               {templates.map((t) => (
