@@ -55,3 +55,7 @@ export const changePassword = (id, newPassword) =>
 // Izračunavanje krojne liste
 export const getItemCalculations = (itemId) =>
   api.get(`/work-orders/items/${itemId}/calculations`);
+
+export const updateOrderItem = async (itemId, itemData) => {
+  return await api.put(`/api/order-items/${itemId}`, itemData);
+};
